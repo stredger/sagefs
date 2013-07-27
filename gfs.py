@@ -3,12 +3,12 @@ import swiftclient
 import StringIO
 
 
-class GFSFileNotFoundException(Exception):
+class GFSException(Exception):
     pass
-    # def __init__(self, message):
-    #     self.message = message
-    # def __str__(self):
-    #     return message
+
+class GFSFileNotFoundException(GFSException):
+    pass
+
 
 
 class SwiftFS():
@@ -39,31 +39,59 @@ class SwiftFS():
         return swiftclient.put_object(self.storeurl, self.storetoken, 
                                       self.container, path, data)
 
-    def open(self, path, create=False):
-        try:
-            resp, data = self.download(path)
+    def delete(self, path):
+        return swiftclient.delete_object(self.storeurl, self.storetoken,
+                                         self.container, path)
+
+
+    def open(self, path, create=False, inmem=True):
+        try: resp, data = self.download(path)
         except swiftclient.client.ClientException as e:
-            print e.http_status
-            # we should check what the ClientException actually means
-            #  we can get more than a 404 here!!
-            raise GFSFileNotFoundException('File Not Found: requested %s at %s' %
-                                           (path, self.storeurl))
-        sf = SwiftFile(data, path, self)
-        self.localfiles[path] = sf
-        return sf
+            if e.http_status == 404: 
+                if create: data = ''
+                else: raise GFSFileNotFoundException('File %s/%s not found.' 
+                                                     % (self.storeurl, path))
+            else: raise GFSException('HTTP Error: %s - %s' 
+                                     % (e.http_status, e.http_reason))
+        fd = SwiftFile(data, path, self)
+        self.localfiles[path] = fd
+        return fd
+
+    def remove(self, path):
+        try: self.delete(path)
+        except swiftclient.client.ClientException as e:
+            if e.http_status == 404: pass # maybe throw an exception?
+            else: raise GFSException('HTTP Error: %s - %s' 
+                                     % (e.http_status, e.http_reason))
+
+    def move(self, oldpath, newpath, overwrite=True):
+        local = True
+        if not overwrite:
+            pass # stat new path to see if there is something there!
+
+        # get the fd for the file like object to move
+        if oldpath not in self.localfiles:
+            local = False
+            self.open(oldpath)
+        fd = self.localfiles[oldpath]
+
+        # upload under new name
+        fd.swiftname = newpath
+        fd.sync()
+        self.localfiles[newpath] = fd
+
+        # remove the old object
+        self.remove(oldpath)
+        self.localfiles.pop(oldpath)
+
+        if not local: fd.close()
+        
+    def list():
+        pass
 
 
-# Eventaully have InMem and OnDisk filesystems!
-# class SwiftInMemFS(SwiftFS):
 
-#     def fopen(self, path, create=False):
-#         data = SwiftFS.fopen(self, path, create)
-#         sf = SwiftFile(data, path, self)
-#         self.localfiles[path] = sf
-#         return sf
-
-
-
+# Eventaully have InMem and OnDisk files!!
 class SwiftFile(StringIO.StringIO):
 
     def __init__(self, data, swiftname, fs):
@@ -92,4 +120,5 @@ class SwiftFile(StringIO.StringIO):
     def close(self):
         self.sync()
         StringIO.StringIO.close(self)
+        self.fs.localfiles.pop(self.swiftname)
         
