@@ -1,7 +1,4 @@
 
-import sys
-sys.path.append('..')
-
 import swiftclient
 import StringIO
 import tempfile
@@ -93,6 +90,16 @@ class SwiftFS():
         
     def list():
         pass
+
+
+
+class SwiftFile():
+    
+    def __init__(self, swiftname, fs, fileclass):
+        self.swiftname = swiftname
+        self.fs = fs
+        self.fileclass = fileclass
+        
 
 
 
