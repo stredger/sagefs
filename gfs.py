@@ -1,6 +1,10 @@
 
+import sys
+sys.path.append('..')
+
 import swiftclient
 import StringIO
+import tempfile
 
 
 class GFSException(Exception):
@@ -53,7 +57,8 @@ class SwiftFS():
                                                      % (self.storeurl, path))
             else: raise GFSException('HTTP Error: %s - %s' 
                                      % (e.http_status, e.http_reason))
-        fd = SwiftFile(data, path, self)
+        if inmem: fd = SwiftMemFile(data, path, self)
+        else: fd = SwiftDiskFile(data, path, self)
         self.localfiles[path] = fd
         return fd
 
@@ -91,12 +96,12 @@ class SwiftFS():
 
 
 
-# Eventaully have InMem and OnDisk files!!
-class SwiftFile(StringIO.StringIO):
+class SwiftMemFile(StringIO.StringIO):
 
     def __init__(self, data, swiftname, fs):
         self.swiftname = swiftname
         self.fs = fs # this should have upload and download functions!
+        #SwiftFile.__init__(self, swiftname, fs)
         StringIO.StringIO.__init__(self, data)
 
     def sync(self):
@@ -122,3 +127,36 @@ class SwiftFile(StringIO.StringIO):
         StringIO.StringIO.close(self)
         self.fs.localfiles.pop(self.swiftname)
         
+
+        
+class SwiftDiskFile(tempfile._TemporaryFileWrapper):
+
+    def __init__(self, data, swiftname, fs):
+        self.swiftname = swiftname
+        self.fs = fs
+        fd = tempfile.NamedTemporaryFile()
+        fd.write(data)
+        return fd
+
+    def sync(self):
+        fptr = self.tell()
+        self.seek(0)
+        self.fs.upload(self.swiftname, self)
+        self.seek(fptr)
+
+
+    def flush(self):
+        self.sync()
+
+    def write(self, arg, sync=True):
+        tempfile._TemporaryFileWrapper.write(self, arg)
+        if sync: self.sync()
+
+    def writelines(self, arg, sync=True):
+        tempfile._TemporaryFileWrapper.writelines(self, arg)
+        if sync: self.sync()
+
+    def close(self):
+        self.sync()
+        tempfile._TemporaryFileWrapper.close(self)
+        self.fs.localfiles.pop(self.swiftname)
