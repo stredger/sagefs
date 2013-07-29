@@ -2,6 +2,7 @@
 import swiftclient
 import StringIO
 import tempfile
+import os
 
 
 class GFSException(Exception):
@@ -100,70 +101,50 @@ class SwiftFile():
         self.fs = fs
         self.fileclass = fileclass
         
+    def _sync(self):
+        fptr = self.fileclass.tell(self)
+        self.fileclass.seek(self, 0)
+        self.fs.upload(self.swiftname, self)
+        self.fileclass.seek(self, fptr)
+
+
+    def flush(self):
+        self._sync()
+
+    def write(self, arg, sync=True):
+        self.fileclass.write(self, arg)
+        if sync: self._sync()
+
+    def writelines(self, arg, sync=True):
+        self.fileclass.writelines(self, arg)
+        if sync: self._sync()
+
+    def close(self):
+        self._sync()
+        self.fileclass.close(self)
+        self.fs.localfiles.pop(self.swiftname)
 
 
 
-class SwiftMemFile(StringIO.StringIO):
+class SwiftMemFile(SwiftFile, StringIO.StringIO):
 
     def __init__(self, data, swiftname, fs):
-        self.swiftname = swiftname
-        self.fs = fs # this should have upload and download functions!
-        #SwiftFile.__init__(self, swiftname, fs)
+        SwiftFile.__init__(self, swiftname, fs, StringIO.StringIO)
         StringIO.StringIO.__init__(self, data)
 
-    def sync(self):
-        fptr = self.tell()
-        self.seek(0)
-        self.fs.upload(self.swiftname, self)
-        self.seek(fptr)
-
-
-    def flush(self):
-        self.sync()
-
-    def write(self, arg, sync=True):
-        StringIO.StringIO.write(self, arg)
-        if sync: self.sync()
-
-    def writelines(self, arg, sync=True):
-        StringIO.StringIO.writelines(self, arg)
-        if sync: self.sync()
-
-    def close(self):
-        self.sync()
-        StringIO.StringIO.close(self)
-        self.fs.localfiles.pop(self.swiftname)
         
-
-        
-class SwiftDiskFile(tempfile._TemporaryFileWrapper):
+     
+class SwiftDiskFile(SwiftFile, file):
 
     def __init__(self, data, swiftname, fs):
-        self.swiftname = swiftname
-        self.fs = fs
-        fd = tempfile.NamedTemporaryFile()
-        fd.write(data)
-        return fd
+        fd, name = tempfile.mkstemp()
+        self.diskname = name
+        SwiftFile.__init__(self, swiftname, fs, file)
+        file.__init__(self, name, 'rw+b')
+        file.write(self, data)
+        file.seek(self, 0)
 
-    def sync(self):
-        fptr = self.tell()
-        self.seek(0)
-        self.fs.upload(self.swiftname, self)
-        self.seek(fptr)
-
-
-    def flush(self):
-        self.sync()
-
-    def write(self, arg, sync=True):
-        tempfile._TemporaryFileWrapper.write(self, arg)
-        if sync: self.sync()
-
-    def writelines(self, arg, sync=True):
-        tempfile._TemporaryFileWrapper.writelines(self, arg)
-        if sync: self.sync()
 
     def close(self):
-        self.sync()
-        tempfile._TemporaryFileWrapper.close(self)
-        self.fs.localfiles.pop(self.swiftname)
+        SwiftFile.close(self)
+        os.unlink(self.diskname)
