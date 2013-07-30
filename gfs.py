@@ -5,12 +5,66 @@ import tempfile
 import os
 
 
-class GFSException(Exception):
-    pass
+class GFSException(Exception): pass
+class GFSInvalidPathException(GFSException): pass
+class GFSInvalidFilesystemException(GFSException): pass
+class GFSFileNotFoundException(GFSException): pass
+class GFSPermissionDenied(GFSException): pass
 
-class GFSFileNotFoundException(GFSException):
-    pass
 
+swiftrepos = {#'uvicgeni' : 'grack01.uvic.trans-cloud.net',
+              'local' : 'localhost'}
+
+def site_to_host(site):
+    try: return swiftrepos[site]
+    except KeyError:
+        raise GFSException('No host matches site %s' % (site))
+
+def get_authv1_url(host, port=8080):
+    return 'http://%s:%s/auth/v1.0' % (host, port)
+
+
+class GFS():
+    
+    def __init__(self, group, user, key, sites=swiftrepos.keys()):
+        self.filesystems = {}
+        self.group = group
+        self.user = user
+        self.key = key
+        for s in sites:
+            authurl = get_authv1_url( site_to_host(s) )
+            fs = SwiftFS(authurl, self.group, self.user, self.key)
+            self.filesystems[s] = fs
+
+    def split_location_from_path(self, path):
+        if path[0] != '/': 
+            raise GFSInvalidPathException('%s - must start with /' % (path))
+        try: splitindex = path.index('/', 1)
+        except ValueError: 
+            raise GFSInvalidPathException('%s - must contain a valid '
+                                          'swift repository name' % (path))
+        location = path[1:splitindex]
+        resource = path[splitindex+1:]
+        return location, resource
+
+    def get_filesystem(self, location):
+        try: return self.filesystems[location]
+        except KeyError:
+            raise GFSInvalidFilesystemException('Filesystem - %s - was not found' 
+                                                % (location))
+
+
+    def open(self, path, *args, **kwargs):
+        location, resource = self.split_location_from_path(path)
+        fs = self.get_filesystem(location)
+        return fs.open(resource, *args, **kwargs)
+
+    def remove(self, path):
+        location, resource = self.split_location_from_path(path)
+        fs = self.get_filesystem(location)
+        fs.remove(resource)
+
+    
 
 
 class SwiftFS():
@@ -29,7 +83,11 @@ class SwiftFS():
     
     def get_storage_token(self):
         account = self.get_account_str()
-        url, token = swiftclient.get_auth(self.authurl, account, self.key)
+        try:
+            url, token = swiftclient.get_auth(self.authurl, account, self.key)
+        except swiftclient.client.ClientException as e:
+            raise GFSException('HTTP Error: %s - %s' 
+                               % (e.http_status, e.http_reason))
         self.storeurl = url
         self.storetoken = token
 
@@ -45,11 +103,21 @@ class SwiftFS():
         return swiftclient.delete_object(self.storeurl, self.storetoken,
                                          self.container, path)
 
+    def head(self, path=None):
+        if not path: 
+            return swiftclient.head_account(self.storeurl, self.storetoken)
+        return swiftclient.head_object(self.storeurl, self.storetoken, 
+                                       self.container, path)
+
+    def swiftlist(self, path):
+        return swiftclient.get_container(self.storeurl, self.storetoken, 
+                                         self.container)
+
 
     def open(self, path, create=False, inmem=True):
         try: resp, data = self.download(path)
         except swiftclient.client.ClientException as e:
-            if e.http_status == 404: 
+            if e.http_status == 404:
                 if create: data = ''
                 else: raise GFSFileNotFoundException('File %s/%s not found.' 
                                                      % (self.storeurl, path))
@@ -66,6 +134,17 @@ class SwiftFS():
             if e.http_status == 404: pass # maybe throw an exception?
             else: raise GFSException('HTTP Error: %s - %s' 
                                      % (e.http_status, e.http_reason))
+   
+    def list(self, path=None):
+        try:
+            resp, objects = self.swiftlist(path)
+        except swiftclient.client.ClientException as e:
+            raise GFSException('HTTP Error: %s - %s' 
+                               % (e.http_status, e.http_reason))
+        return objects
+          
+    def stat(self, path=None):
+        pass
 
     def move(self, oldpath, newpath, overwrite=True):
         local = True
@@ -88,8 +167,8 @@ class SwiftFS():
         self.localfiles.pop(oldpath)
 
         if not local: fd.close()
-        
-    def list():
+
+    def copy(self):
         pass
 
 
@@ -101,7 +180,7 @@ class SwiftFile():
         self.fs = fs
         self.fileclass = fileclass
         
-    def _sync(self):
+    def sync(self):
         fptr = self.fileclass.tell(self)
         self.fileclass.seek(self, 0)
         self.fs.upload(self.swiftname, self)
@@ -109,18 +188,18 @@ class SwiftFile():
 
 
     def flush(self):
-        self._sync()
+        self.sync()
 
     def write(self, arg, sync=True):
         self.fileclass.write(self, arg)
-        if sync: self._sync()
+        if sync: self.sync()
 
     def writelines(self, arg, sync=True):
         self.fileclass.writelines(self, arg)
-        if sync: self._sync()
+        if sync: self.sync()
 
     def close(self):
-        self._sync()
+        self.sync()
         self.fileclass.close(self)
         self.fs.localfiles.pop(self.swiftname)
 
@@ -138,6 +217,9 @@ class SwiftDiskFile(SwiftFile, file):
 
     def __init__(self, data, swiftname, fs):
         fd, name = tempfile.mkstemp()
+        # Close this fd as the file constructor makes
+        #  a file like object we use instead
+        os.close(fd)
         self.diskname = name
         SwiftFile.__init__(self, swiftname, fs, file)
         file.__init__(self, name, 'rw+b')
