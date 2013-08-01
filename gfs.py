@@ -64,7 +64,23 @@ class GFS():
         fs = self.get_filesystem(location)
         fs.remove(resource)
 
+    def list(self, path=None):
+        pass
+
+    def stat(self, path=None):
+        if path: return # do something here to show all filesystem locations
+        location, resource = self.split_location_from_path(path)
+        fs = self.get_filesystem(location)
+        return fs.stat(path)
+
+    def move(self):
+        pass
+
+    def copy(self):
+        pass
     
+    def upload(self, path):
+        pass
 
 
 class SwiftFS():
@@ -109,7 +125,7 @@ class SwiftFS():
         return swiftclient.head_object(self.storeurl, self.storetoken, 
                                        self.container, path)
 
-    def swiftlist(self, path):
+    def list_container(self, path):
         return swiftclient.get_container(self.storeurl, self.storetoken, 
                                          self.container)
 
@@ -126,50 +142,60 @@ class SwiftFS():
         if inmem: fd = SwiftMemFile(data, path, self)
         else: fd = SwiftDiskFile(data, path, self)
         self.localfiles[path] = fd
+        if create: fd.sync()
         return fd
 
     def remove(self, path):
         try: self.delete(path)
         except swiftclient.client.ClientException as e:
-            if e.http_status == 404: pass # maybe throw an exception?
+            if e.http_status == 404:                 
+                raise GFSFileNotFoundException('Resource %s not found' 
+                                               % (path))
             else: raise GFSException('HTTP Error: %s - %s' 
                                      % (e.http_status, e.http_reason))
    
     def list(self, path=None):
-        try:
-            resp, objects = self.swiftlist(path)
+        try: resp, objects = self.list_container(path)
         except swiftclient.client.ClientException as e:
             raise GFSException('HTTP Error: %s - %s' 
                                % (e.http_status, e.http_reason))
         return objects
           
     def stat(self, path=None):
-        pass
+        try: resp = self.head(path)
+        except swiftclient.client.ClientException as e:
+            if e.http_status == 404: 
+                raise GFSFileNotFoundException('Resource %s not found' 
+                                               % (path))
+            else: raise GFSException('HTTP Error: %s - %s'
+                                     % (e.http_status, e.http_reason))
+        return resp
 
-    def move(self, oldpath, newpath, overwrite=True):
+    def copy(self, frompath, topath, overwrite=False):
+        if frompath == topath: return
         local = True
         if not overwrite:
-            pass # stat new path to see if there is something there!
-
+            try: # stat the file, if it exists throw an exception
+                self.stat(topath)
+                raise GFSException('File %s exists and overwrite' 
+                                   ' is False' % (topath))
+            except GFSFileNotFoundException: pass
         # get the fd for the file like object to move
-        if oldpath not in self.localfiles:
+        if frompath not in self.localfiles:
             local = False
-            self.open(oldpath)
-        fd = self.localfiles[oldpath]
-
+            self.open(frompath)
+        fd = self.localfiles[frompath]
         # upload under new name
-        fd.swiftname = newpath
+        fd.swiftname = topath
         fd.sync()
-        self.localfiles[newpath] = fd
-
-        # remove the old object
-        self.remove(oldpath)
-        self.localfiles.pop(oldpath)
-
+        fd.swiftname = frompath
         if not local: fd.close()
 
-    def copy(self):
-        pass
+    def move(self, oldpath, newpath, overwrite=False):
+        if oldpath == newpath: return
+        self.copy(oldpath, newpath, overwrite)
+        self.remove(oldpath)
+
 
 
 
@@ -202,6 +228,17 @@ class SwiftFile():
         self.sync()
         self.fileclass.close(self)
         self.fs.localfiles.pop(self.swiftname)
+
+    def todisk(self, path, overwrite=False):
+        if not overwrite and os.path.exists(path):
+            raise IOError('%s already exists' % (path))
+        diskf = open(path, 'w+b')
+        fptr = self.fileclass.tell(self)
+        self.fileclass.seek(self, 0)
+        data = self.read()
+        diskf.write(data)
+        diskf.close()
+        self.fileclass.seek(self, fptr)        
 
 
 
