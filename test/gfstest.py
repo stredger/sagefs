@@ -16,7 +16,8 @@ fs = gfs.GFS('savant', 'savant', 'savant')
 #print fs.stat()
 
 #print fs.list('/local/')
-print fs.stat()
+#print fs.stat()
+fs.upload('gfs.py', '/local/')
 
 #fs.open('hello.txt', True)
 #fs.move('hi.txt', 'hello.txt', True)

@@ -87,9 +87,13 @@ class GFS():
     def move(self):
         pass
 
-    def upload(self, path, stayopen=False):
-        pass
-
+    def upload(self, localpath, swiftpath):
+        fptr = open(localpath)
+        location, resource = self.split_location_from_path(swiftpath)
+        if not resource: resource = localpath
+        fs = self.get_filesystem(location)
+        fs.upload(resource, fptr)
+        fptr.close()
 
 
 
