@@ -13,9 +13,10 @@ fs = gfs.GFS('savant', 'savant', 'savant')
 
 #fs = gfs.SwiftFS('http://localhost:8080/auth/v1.0', 'savant', 'savant', 'savant')
 
+#print fs.stat()
 
-#print fs.list()
-#print fs.stat('helo.txt')
+#print fs.list('/local/')
+print fs.stat()
 
 #fs.open('hello.txt', True)
 #fs.move('hi.txt', 'hello.txt', True)

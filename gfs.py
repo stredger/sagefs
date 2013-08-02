@@ -25,7 +25,7 @@ def get_authv1_url(host, port=8080):
 
 
 class GFS():
-    
+
     def __init__(self, group, user, key, sites=swiftrepos.keys()):
         self.filesystems = {}
         self.group = group
@@ -65,22 +65,39 @@ class GFS():
         fs.remove(resource)
 
     def list(self, path=None):
-        pass
-
-    def stat(self, path=None):
-        if path: return # do something here to show all filesystem locations
+        if not path: return ['/%s/' % (k) for k in self.filesystems.keys()]
         location, resource = self.split_location_from_path(path)
         fs = self.get_filesystem(location)
-        return fs.stat(path)
+        return fs.list(resource)
+
+    def stat(self, path=None):
+        if not path:
+            resp = {}
+            for location in self.filesystems.keys():
+                fs = self.get_filesystem(location)
+                resp[location] = fs.stat()
+            return resp
+        location, resource = self.split_location_from_path(path)
+        fs = self.get_filesystem(location)
+        return fs.stat(resource)
+
+    def copy(self):
+        pass
 
     def move(self):
         pass
 
-    def copy(self):
+    def upload(self, path, stayopen=False):
         pass
-    
-    def upload(self, path):
-        pass
+
+
+
+
+def swift_to_gfs_exception(e, **kwargs):
+    # check if we are a swiftclient.client exception
+    # then parse on http_status
+    # raise the appropreate exception
+    pass
 
 
 class SwiftFS():
@@ -96,7 +113,7 @@ class SwiftFS():
 
     def get_account_str(self):
         return "%s:%s" % (self.group, self.user)
-    
+
     def get_storage_token(self):
         account = self.get_account_str()
         try:
@@ -153,14 +170,14 @@ class SwiftFS():
                                                % (path))
             else: raise GFSException('HTTP Error: %s - %s' 
                                      % (e.http_status, e.http_reason))
-   
+
     def list(self, path=None):
         try: resp, objects = self.list_container(path)
         except swiftclient.client.ClientException as e:
             raise GFSException('HTTP Error: %s - %s' 
                                % (e.http_status, e.http_reason))
         return objects
-          
+
     def stat(self, path=None):
         try: resp = self.head(path)
         except swiftclient.client.ClientException as e:
@@ -248,7 +265,7 @@ class SwiftMemFile(SwiftFile, StringIO.StringIO):
         SwiftFile.__init__(self, swiftname, fs, StringIO.StringIO)
         StringIO.StringIO.__init__(self, data)
 
-        
+
      
 class SwiftDiskFile(SwiftFile, file):
 
