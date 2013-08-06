@@ -23,6 +23,13 @@ def site_to_host(site):
 def get_authv1_url(host, port=8080):
     return 'http://%s:%s/auth/v1.0' % (host, port)
 
+def swift_to_gfs_exception(e, **kwargs):
+    # check if we are a swiftclient.client exception
+    # then parse on http_status
+    # raise the appropreate exception
+    pass
+
+
 
 class GFS():
 
@@ -87,21 +94,17 @@ class GFS():
     def move(self):
         pass
 
-    def upload(self, localpath, swiftpath):
-        fptr = open(localpath)
+    def upload(self, localpath, swiftpath, overwrite=False):
+        # stat the path to see if it exists, have a path exists function??
         location, resource = self.split_location_from_path(swiftpath)
         if not resource: resource = localpath
         fs = self.get_filesystem(location)
-        fs.upload(resource, fptr)
+        #fs.path_exists()
+        fptr = open(localpath)
+        try: fs.upload(resource, fptr)
+        except swiftclient.client.ClientException as e: pass # do something here
         fptr.close()
 
-
-
-def swift_to_gfs_exception(e, **kwargs):
-    # check if we are a swiftclient.client exception
-    # then parse on http_status
-    # raise the appropreate exception
-    pass
 
 
 class SwiftFS():
