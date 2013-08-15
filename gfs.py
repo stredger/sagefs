@@ -12,8 +12,11 @@ class GFSFileNotFoundException(GFSException): pass
 class GFSPermissionDenied(GFSException): pass
 
 
-swiftrepos = {#'uvicgeni' : 'grack01.uvic.trans-cloud.net',
-              'local' : 'localhost'}
+swiftrepos = {'uvic' : 'grack01.uvic.trans-cloud.net',
+              'savi' : '142.104.64.68',
+              'gpo' : 'gc-1.stephen.ch-geni-net.instageni.gpolab.bbn.com',
+              'kentucky' : 'gc-1.stephen.ch-geni-net.lan.sdn.uky.edu',
+              'utah' : 'gc-1.stephen.ch-geni-net.utah.geniracks.net'}
 
 def site_to_host(site):
     try: return swiftrepos[site]
