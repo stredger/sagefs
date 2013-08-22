@@ -289,8 +289,8 @@ class SwiftFS():
         fd = self.localfiles[frompath]
         if overwrite:
             # if we are overwriting and the file is local close it
-            tofd = self.localfiles.get(frompath, None)
-            if tofd: todf.close()
+            tofd = self.localfiles.get(topath, None)
+            if tofd: tofd.close()
         # upload under new name
         fd.swiftname = topath
         fd.sync()

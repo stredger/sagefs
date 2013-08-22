@@ -41,17 +41,17 @@ for host in gfs.swiftrepos.values():
     print "Stats for filesystem: %s\nStats for file %s: %s" % (fsstat, fname, fstat)
 
     copyname = 'hello2.txt'
-    fs.copy(fname, copyname)
+    fs.copy(fname, copyname, True)
     if not fs.file_exists(copyname):
         print "Copy failed"
         sys.exit()
-    print "Copied % to %s" % (fname, copyname)
+    print "Copied %s to %s" % (fname, copyname)
 
     listing = fs.list()
     print "Lised fs: %s" % (listing)
 
     try: fs.move(copyname, fname)
-    except GFSFileExistsException: pass
+    except gfs.GFSFileExistsException: pass
     fs.move(copyname, fname, True)
     if fs.file_exists(copyname):
         print "Move failed"
