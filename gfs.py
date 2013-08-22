@@ -8,7 +8,7 @@ import os
 
 #TODO's
 # - support for different users per fs?
-# - re authenticate if token craps out
+# - re authenticate if token craps out, what error do we get?
 # - better exception handling stuff
 # - docs
 # - containers must exist before we upload it seems
@@ -24,7 +24,7 @@ class GFSPermissionDenied(GFSException): pass
 
 
 swiftrepos = {'uvic' : 'grack01.uvic.trans-cloud.net',
-              #'local' : 'localhost'
+              #'local' : 'localhost',
               'savi' : '142.104.64.68',
               'gpo' : 'gc-1.stephen.ch-geni-net.instageni.gpolab.bbn.com',
               'kentucky' : 'gc-1.stephen.ch-geni-net.lan.sdn.uky.edu',
