@@ -7,11 +7,18 @@ import gfs
 
 
 
-fs = gfs.GFS('savant', 'savant', 'savant')
+#fs = gfs.GFS('savant', 'savant', 'savant')
 
-f = fs.open('/local/paul.txt', True)
+#f = fs.open('/local/paul.txt', True)
 
-#fs = gfs.SwiftFS('http://grack01.uvic.trans-cloud.net:8080/auth/v1.0', 'savant', 'savant', 'savant')
+fs = gfs.SwiftFS('http://grack01.uvic.trans-cloud.net:8080/auth/v1.0', 'savant', 'savant', 'savant')
+
+#print fs.storetoken
+fs.storetoken = 'poo'
+
+#print fs.stat()
+
+
 #print fs.stat_container('savant')
 
 #print fs.stat()
@@ -20,7 +27,8 @@ f = fs.open('/local/paul.txt', True)
 #print fs.stat()
 #fs.upload('gfs.py', '/local/')
 
-#fs.open('hello.txt', True)
+fs.open('hello.txt', True)
+
 #fs.move('hi.txt', 'hello.txt', True)
 
 #fs.copy('hello.txt', 'helo.txt', True)
@@ -35,11 +43,11 @@ f = fs.open('/local/paul.txt', True)
 
 
 #sleep(100)
-f.write('hi paul!!\n')
+#f.write('hi paul!!\n')
 #print f.getvalue()
-f.seek(0)
-print f.readlines()
-f.close()
+#f.seek(0)
+#print f.readlines()
+#f.close()
 
 #fs = gfs.GFS('savant', 'savant', 'savant')
 #fs.remove('/local/helo.txt')

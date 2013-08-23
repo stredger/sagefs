@@ -47,6 +47,11 @@ def swift_to_gfs_exception(e, **kwargs):
     # raise the appropreate exception
     pass
 
+def can_retry_error_status(status):
+    if status == 503 or status == 401: 
+        return True
+    return False
+
 
 
 class GFS():
@@ -186,38 +191,57 @@ class SwiftFS():
                 raise GFSException('HTTP Error: %s - %s' 
                                    % (e.http_status, e.http_reason))
                                    
+    def swift_command(self, cmd, args, retry):
+        try: return cmd(*args)
+        except swiftclient.client.ClientException as e:
+            if retry and can_retry_error_status(e.http_status):
+                if e.http_status == 401:
+                    self.get_storage_token()
+                    # reset the storage token already in args
+                    args[1] = self.storetoken
+                # retry the command but dont catch any exceptions
+                return cmd(*args) 
+            else: raise e
 
-    def download(self, path):
-        return swiftclient.get_object(self.storeurl, self.storetoken, 
-                                      self.container, path)
+    def download(self, path, retry=True):
+        cmd = swiftclient.get_object
+        args = [self.storeurl, self.storetoken, self.container, path]
+        return self.swift_command(cmd, args, retry)
 
-    def upload(self, path, data):
-        return swiftclient.put_object(self.storeurl, self.storetoken, 
-                                      self.container, path, data)
+    def upload(self, path, data, retry=True):
+        cmd = swiftclient.put_object
+        args = [self.storeurl, self.storetoken, self.container, path, data]
+        return self.swift_command(cmd, args, retry)
 
-    def delete(self, path):
-        return swiftclient.delete_object(self.storeurl, self.storetoken,
-                                         self.container, path)
+    def delete(self, path, retry=True):
+        cmd = swiftclient.delete_object
+        args = [self.storeurl, self.storetoken, self.container, path]
+        return self.swift_command(cmd, args, retry)
 
-    def head(self, path=None):
-        if not path: 
-            return swiftclient.head_account(self.storeurl, self.storetoken)
-        return swiftclient.head_object(self.storeurl, self.storetoken, 
-                                       self.container, path)
+    def head(self, path=None, retry=True):
+        if path:
+            cmd = swiftclient.head_object
+            args = [self.storeurl, self.storetoken, self.container, path]
+        else:
+            cmd = swiftclient.head_account
+            args = [self.storeurl, self.storetoken]
+        return self.swift_command(cmd, args, retry)
 
-
-    def head_container(self, container):
-        return swiftclient.head_container(self.storeurl, self.storetoken,
-                                          container)
-
-    def list_container(self, path):
+    def head_container(self, container, retry=True):
+        cmd = swiftclient.head_container
+        args = [self.storeurl, self.storetoken, container]
+        return self.swift_command(cmd, args, retry)
+    
+    def list_container(self, path, retry=True):
         # TODO: use paths so we can query like ls /path/
-        return swiftclient.get_container(self.storeurl, self.storetoken, 
-                                         self.container)
-
-    def create_container(self, container):
-        return swiftclient.put_container(self.storeurl, self.storetoken,
-                                         container)
+        cmd = swiftclient.get_container
+        args = [self.storeurl, self.storetoken, self.container] #path
+        return self.swift_command(cmd, args, retry)
+    
+    def create_container(self, container, retry=True):
+        cmd = swiftclient.put_container
+        args = [self.storeurl, self.storetoken, container]
+        return self.swift_command(cmd, args, retry)
 
     def file_exists(self, path):
         """ Return True if a file exists at 'path', False otherwise """
