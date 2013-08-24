@@ -48,6 +48,7 @@ def swift_to_gfs_exception(e, **kwargs):
     pass
 
 def can_retry_error_status(status):
+    """ Return True if the http status is something a retry may solve """
     if status == 503 or status == 401: 
         return True
     return False
@@ -121,7 +122,7 @@ class GFS():
         origfs = self.get_filesystem(origlocation)
         if origlocation == newlocation:
             # if both resources use the same fs use the fs's copy
-            origfs.copy(origresource, newresource)
+            origfs.copy(origresource, newresource, overwrite)
             return
         newfs = self.get_filesystem(newlocation)
         # check to see if we are overwriting anything
@@ -261,6 +262,10 @@ class SwiftFS():
 
 
     def open(self, path, create=False, inmem=True):
+        fd = self.localfiles.get(path, None)
+        # if the file is already open, just return the fd.
+        #  We could raise an exception, should not try to open a file twice
+        if fd: return fd
         try: resp, data = self.download(path)
         except swiftclient.client.ClientException as e:
             if e.http_status == 404:

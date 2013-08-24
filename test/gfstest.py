@@ -3,56 +3,47 @@ import sys
 sys.path.append('..')
 sys.path.append('.')
 
+import os
 import gfs
 
 
+fs = gfs.GFS('savant', 'savant', 'savant')
 
-#fs = gfs.GFS('savant', 'savant', 'savant')
+testloc = 'uvic'
+testfile = 'hello.txt'
 
-#f = fs.open('/local/paul.txt', True)
+print "======== Testing stat() ========"
+print fs.stat()
+print fs.stat('/%s/' % (testloc))
+print fs.stat('/%s/%s' % (testloc, testfile))
 
-fs = gfs.SwiftFS('http://grack01.uvic.trans-cloud.net:8080/auth/v1.0', 'savant', 'savant', 'savant')
+print "======== Testing list() ========"
+print fs.list()
+print fs.list('/%s/' % (testloc))
+print fs.list('/%s/%s' % (testloc, testfile))
 
-#print fs.storetoken
-fs.storetoken = 'poo'
+print "======== Testing open() & upload() ========"
+newtestloc = 'savi'
+teststr = 'sup mang'
+f = fs.open('/%s/%s' % (testloc, testfile), True)
+f.write(teststr)
+f.todisk(testfile)
+f.close()
+fs.upload(testfile, '/%s/%s' % (newtestloc, testfile))
+print "uploaded file to /%s/%s" % (newtestloc, testfile)
+os.remove(testfile)
 
-#print fs.stat()
+print "======== Testing copy() ========"
+newtestfile = 'hi.txt'
+fs.copy('/%s/%s' % (newtestloc, testfile), '/%s/%s' % (testloc, newtestfile))
+fs.copy('/%s/%s' % (newtestloc, testfile), '/%s/%s' % (testloc, newtestfile), True)
+print "copied file /%s/%s to /%s/%s" % (newtestloc, testfile, testloc, newtestfile)
 
+print "======== Testing move() & remove() ========"
+fs.move('/%s/%s' % (newtestloc, testfile), '/%s/%s' % (testloc, testfile), True)
+fs.move('/%s/%s' % (testloc, newtestfile), '/%s/%s' % (testloc, testfile), True)
+print "moved /%s/%s to /%s/%s" % (newtestloc, testfile, testloc, newtestfile)
+print "also moved /%s/%s to /%s/%s" % (testloc, newtestfile, testloc, testfile)
 
-#print fs.stat_container('savant')
-
-#print fs.stat()
-
-#print fs.list('/local/')
-#print fs.stat()
-#fs.upload('gfs.py', '/local/')
-
-fs.open('hello.txt', True)
-
-#fs.move('hi.txt', 'hello.txt', True)
-
-#fs.copy('hello.txt', 'helo.txt', True)
-
-#f = fs.open('hello.txt', True)
-#f.todisk('hello.txt')
-
-#if not f:
-#    sys.exit()
-
-#print f.readlines()
-
-
-#sleep(100)
-#f.write('hi paul!!\n')
-#print f.getvalue()
-#f.seek(0)
-#print f.readlines()
-#f.close()
-
-#fs = gfs.GFS('savant', 'savant', 'savant')
-#fs.remove('/local/helo.txt')
-# f = fs.open('helo.txt')
-# print f.readlines()
-# f.close()
-
-#fs.move( 'ello.txt', 'helo.txt')
+fs.remove('/%s/%s' % (testloc, testfile))
+print "removed /%s/%s" % (testloc, testfile)
