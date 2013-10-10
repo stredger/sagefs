@@ -1,18 +1,48 @@
+""" 
+Author: Stephen Tredger, 2013
+
+Copyright (c) 2013 University of Victoria
+
+See LICENSE.txt or visit www.geni.net/wp-content/uploads/2009/02/genipublic.pdf 
+for the full license
+"""
+
+"""
+GFS implementation. The GFS is a distributed store with a filesystem like api.
+The only object that needs to be instantiated is the GFS object. The filesystem
+is interacted with through this object. (see README for info on users and accounts)
+>>> fs = gfs.GFS(accountname, username, key)
+>>> fs.move('/repo1/file', '/repo2/file')
+
+Files are also opened throiugh a GFS object but can then be used like
+regular python file objects. 
+>>> f = fs.open('/repo/hi.txt')
+>>> print f.read()
+>>> f.write('appended!')
+>>> f.close()
+All files are opened in 'rw+b', and can only be opened once. If a file is opened
+twice, the already opened file object is returned!
+>>> f1 = fs.open('/repo/file')
+>>> f2 = fs.open('/repo/file')
+>>> f1 == f2
+>>> True
+
+There are two types of file objects gfs.open() can return, a purely in memory 
+file (the default), or a tempfile on disk. Set the open arg 'inmem' to False for
+a file on disk. The files behave the same way regardless of type.
+"""
+
 
 import swiftclient
 import StringIO
 import tempfile
 import os
-
+import hosts
 
 
 #TODO's
-# - support for different users per fs?
-# - re authenticate if token craps out, what error do we get?
 # - better exception handling stuff
-# - docs
-# - containers must exist before we upload it seems
-# - make directories and such to fake fs structure
+# - handle path querying in list command
 
 class GFSException(Exception): pass
 class GFSInvalidPathException(GFSException): pass
@@ -22,17 +52,13 @@ class GFSFileExistsException(GFSException): pass
 class GFSPermissionDenied(GFSException): pass
 
 
+# this is our super important dict of swiftrepos!
+swiftrepos = hosts.proxies
 
-swiftrepos = {'uvic' : 'grack01.uvic.trans-cloud.net',
-              #'local' : 'localhost',
-              'savi' : '142.104.64.68',
-              'gpo' : 'gc-1.stephen.ch-geni-net.instageni.gpolab.bbn.com',
-              'kentucky' : 'gc-1.stephen.ch-geni-net.lan.sdn.uky.edu',
-              'utah' : 'gc-1.stephen.ch-geni-net.utah.geniracks.net'}
 
 def site_to_host(site):
     """ Find and return the hostname for the provided site.
-        If no hostname matches a GFSException is raised """
+    If no hostname matches a GFSException is raised """
     try: return swiftrepos[site]
     except KeyError:
         raise GFSException('No host matches site %s' % (site))
@@ -56,16 +82,23 @@ def can_retry_error_status(status):
 
 
 class GFS():
+    """ The main geni filesystem object. Takes a user group and key, and 
+    establishes connections to Swift repos. Connections are only established
+    when they are used the first time. The GFS object is designed to be the
+    only object that must be explicitly created to use the GFS. """
 
     def __init__(self, group, user, key, sites=swiftrepos.keys()):
         self.filesystems = {}
         self.group = group
         self.user = user
         self.key = key
-        for s in sites:
-            authurl = get_authv1_url( site_to_host(s) )
-            fs = SwiftFS(authurl, self.group, self.user, self.key)
-            self.filesystems[s] = fs
+
+    def connect_to_filesystem(self, site):
+        """ Creates a SwiftFS object, if we correctly connected 
+        and aquired an auth token """
+        authurl = get_authv1_url( site_to_host(site) )
+        fs = SwiftFS(authurl, self.group, self.user, self.key)
+        self.filesystems[site] = fs
 
     def split_location_from_path(self, path):
         """ A path looks like /location/path, split and return location, /path """
@@ -84,27 +117,36 @@ class GFS():
         If no hostname matches a GFSInvalidFilesystemException is raised """
         try: return self.filesystems[location]
         except KeyError:
-            raise GFSInvalidFilesystemException('Filesystem - %s - was not found' 
-                                                % (location))
-
+            if location not in swiftrepos.keys():
+                raise GFSInvalidFilesystemException('Filesystem - %s - was not found' 
+                                                    % (location))
+            
 
     def open(self, path, *args, **kwargs):
+        """ Opens a file at path, calls the underlying SwiftFS's open.
+        The desired SwiftFS, must be the root of the path """
         location, resource = self.split_location_from_path(path)
         fs = self.get_filesystem(location)
         return fs.open(resource, *args, **kwargs)
 
     def remove(self, path):
+        """ Removes a resourse by calling the holding SwiftFS's remove.
+        The SwiftFS must be the root of the path. """
         location, resource = self.split_location_from_path(path)
         fs = self.get_filesystem(location)
         fs.remove(resource)
 
     def list(self, path=None):
+        """ Lists all Files in the filesystem specified at 'path'. If 'path' 
+        is none, returns all the filesystem names in the GFS """
         if not path: return ['/%s/' % (k) for k in self.filesystems.keys()]
         location, resource = self.split_location_from_path(path)
         fs = self.get_filesystem(location)
         return fs.list(resource)
 
     def stat(self, path=None):
+        """ Gets stats for a file if 'path' is not None,
+        else gets stats for all filesystems """
         if not path:
             resp = {}
             for location in self.filesystems.keys():
@@ -116,6 +158,8 @@ class GFS():
         return fs.stat(resource)
 
     def copy(self, origpath, newpath, overwrite=False):
+        """ Copy a file from 'origpath' to 'newpath'.
+        Will not overwrite unless specified """
         if origpath == newpath: return
         origlocation, origresource = self.split_location_from_path(origpath)
         newlocation, newresource = self.split_location_from_path(newpath)
@@ -142,10 +186,14 @@ class GFS():
         if not local: origfd.close() 
 
     def move(self, origpath, newpath, overwrite=False):
+        """ Move a file from origpath to newpath, will not
+        overwrite unless specified """
         self.copy(origpath, newpath, overwrite)
         self.remove(origpath)
 
     def upload(self, localpath, swiftpath, overwrite=False):
+        """ Upload a file into Swift from the local machine at 'localpath' 
+        to 'swiftpath'. Will not overwrite unless specified """
         location, resource = self.split_location_from_path(swiftpath)
         if not resource: resource = localpath
         fs = self.get_filesystem(location)
@@ -161,6 +209,10 @@ class GFS():
 
 
 class SwiftFS():
+    """ Interface between file objects and the actual Swift repository.
+    'authurl' should be the url to authenticate with the desired swift cluster
+    while the other parameters should be user specific authentication params.
+    The user must already exist as a user in the Swift repo. """
 
     def __init__(self, authurl, group, user, key):
         self.authurl = authurl
@@ -173,9 +225,11 @@ class SwiftFS():
         self.init_container()
 
     def get_account_str(self):
+        """ Generate account string required for swift authentication """
         return "%s:%s" % (self.group, self.user)
 
     def get_storage_token(self):
+        """ Get a storage token for the swift cluster """
         account = self.get_account_str()
         try:
             url, token = swiftclient.get_auth(self.authurl, account, self.key)
@@ -186,6 +240,7 @@ class SwiftFS():
         self.storetoken = token
 
     def init_container(self):
+        """ Make sure we have an account container """
         if not self.container_exists(self.container):
             try: self.create_container(self.container)
             except swiftclient.client.ClientException as e:
@@ -193,10 +248,13 @@ class SwiftFS():
                                    % (e.http_status, e.http_reason))
                                    
     def swift_command(self, cmd, args, retry):
+        """ Do a swift command from the swiftclient module.
+        If retry is True then retry the command once on error """
         try: return cmd(*args)
         except swiftclient.client.ClientException as e:
             if retry and can_retry_error_status(e.http_status):
-                if e.http_status == 401:
+                if e.http_status == 401: 
+                    # error 401 may mean our storage token has expired
                     self.get_storage_token()
                     # reset the storage token already in args
                     args[1] = self.storetoken
@@ -205,21 +263,26 @@ class SwiftFS():
             else: raise e
 
     def download(self, path, retry=True):
+        """ Download an object at 'path' from Swift """
         cmd = swiftclient.get_object
         args = [self.storeurl, self.storetoken, self.container, path]
         return self.swift_command(cmd, args, retry)
 
     def upload(self, path, data, retry=True):
+        """ Upload an object to 'path' in Swift """
         cmd = swiftclient.put_object
         args = [self.storeurl, self.storetoken, self.container, path, data]
         return self.swift_command(cmd, args, retry)
 
     def delete(self, path, retry=True):
+        """ Remove an object at 'path' from Swift """
         cmd = swiftclient.delete_object
         args = [self.storeurl, self.storetoken, self.container, path]
         return self.swift_command(cmd, args, retry)
 
     def head(self, path=None, retry=True):
+        """ Get stats (size, date, etc) from Swift for an object if 'path'
+        is specified, or for the entire account if path is None """
         if path:
             cmd = swiftclient.head_object
             args = [self.storeurl, self.storetoken, self.container, path]
@@ -229,17 +292,20 @@ class SwiftFS():
         return self.swift_command(cmd, args, retry)
 
     def head_container(self, container, retry=True):
+        """ Get stats for a container from Swift """
         cmd = swiftclient.head_container
         args = [self.storeurl, self.storetoken, container]
         return self.swift_command(cmd, args, retry)
     
     def list_container(self, path, retry=True):
+        """ List all files contained within the users container """
         # TODO: use paths so we can query like ls /path/
         cmd = swiftclient.get_container
         args = [self.storeurl, self.storetoken, self.container] #path
         return self.swift_command(cmd, args, retry)
     
     def create_container(self, container, retry=True):
+        """ Creates a swift container """
         cmd = swiftclient.put_container
         args = [self.storeurl, self.storetoken, container]
         return self.swift_command(cmd, args, retry)
@@ -251,7 +317,8 @@ class SwiftFS():
         return True
 
     def container_exists(self, container):
-        """ Return True container exists, False otherwise """
+        """ Return True container exists, False otherwise. Throws a 
+        GFSException if an HTTP error is encoutered """
         try: self.head_container(container)
         except swiftclient.client.ClientException as e:
             if e.http_status == 404: 
@@ -262,6 +329,13 @@ class SwiftFS():
 
 
     def open(self, path, create=False, inmem=True):
+        """ Opens a file from SwiftFS. For consistency issues, a file may only
+        be opened once. If a file is opened twice the opened fd gets returned.
+        If the 'create' flag is True then the file will be created in the SwiftFS
+        if not present already. Two file like objects can be returned, one that
+        exists purely in memory, 'inmem'=True, and one that exists as a temp file
+        'inmem'=False. Throws a GFSFileNotFoundException if the file doesn't
+        exists and we are not creating one, and GFSException for HTTP errors """
         fd = self.localfiles.get(path, None)
         # if the file is already open, just return the fd.
         #  We could raise an exception, should not try to open a file twice
@@ -281,6 +355,9 @@ class SwiftFS():
         return fd
 
     def remove(self, path):
+        """ Removes a respourse at 'path' in the SwiftFS. Throws GFSException
+        if an HTTP error occurs and GFSFileNotFoundException if the resource
+        doesn't exist """
         try: self.delete(path)
         except swiftclient.client.ClientException as e:
             if e.http_status == 404:                 
@@ -290,6 +367,8 @@ class SwiftFS():
                                      % (e.http_status, e.http_reason))
 
     def list(self, path=None):
+        """ Lists all files present in the SwiftFS. Throws a
+        GFSException if an HTTP error occurs. """
         try: resp, objects = self.list_container(path)
         except swiftclient.client.ClientException as e:
             raise GFSException('HTTP Error: %s - %s' 
@@ -297,6 +376,9 @@ class SwiftFS():
         return objects
 
     def stat(self, path=None):
+        """ Gets the stats of a file by heading it in Swift. Throws
+        a GFSException if an HTTP error is encoutered, and a 
+        GFSFileNotFoundException if the file doesn't exists """
         try: resp = self.head(path)
         except swiftclient.client.ClientException as e:
             if e.http_status == 404: 
@@ -307,6 +389,8 @@ class SwiftFS():
         return resp
 
     def copy(self, frompath, topath, overwrite=False):
+        """ Copies a file at frompath to topath within the SwiftFS.
+        Will not overwrite a file at topath unless 'overwrite'=True """
         if frompath == topath: return
         local = True
         if not overwrite and self.file_exists(topath):
@@ -327,14 +411,17 @@ class SwiftFS():
         if not local: fd.close()
 
     def move(self, oldpath, newpath, overwrite=False):
+        """ Moves a file within the SwiftFS from oldpath to newpath.
+        Will not overwrite a file at newpath unless 'overwrite'=True """
         if oldpath == newpath: return
         self.copy(oldpath, newpath, overwrite)
         self.remove(oldpath)
 
 
 
-
 class SwiftFile():
+    """ A file like class, to be used as more of an abstract class.
+    'fileclass' should be a file like class as well """
     
     def __init__(self, swiftname, fs, fileclass):
         self.swiftname = swiftname
@@ -388,7 +475,7 @@ class SwiftFile():
 
 
 class SwiftMemFile(SwiftFile, StringIO.StringIO):
-    """ A string buffer that is used exactly like a regular file 
+    """ A string buffer that is used exactly like a regular file, 
     but resides in memory """
 
     def __init__(self, data, swiftname, fs):
@@ -398,7 +485,7 @@ class SwiftMemFile(SwiftFile, StringIO.StringIO):
 
      
 class SwiftDiskFile(SwiftFile, file):
-    """ A temp file that resides on disk """
+    """ A temp file like object that resides on disk """
 
     def __init__(self, data, swiftname, fs):
         fd, name = tempfile.mkstemp()

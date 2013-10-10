@@ -1,8 +1,18 @@
+""" 
+Author: Stephen Tredger, 2013
+
+Copyright (c) 2013 University of Victoria
+
+See LICENSE.txt or visit www.geni.net/wp-content/uploads/2009/02/genipublic.pdf 
+for the full license
+"""
+
+""" 
+A Test for various GFS functionality
+"""
 
 import sys
-sys.path.append('..')
-sys.path.append('.')
-
+sys.path += ['..', '.']
 import os
 import gfs
 
@@ -13,7 +23,7 @@ testloc = 'uvic'
 testfile = 'hello.txt'
 
 print "======== Testing stat() ========"
-print fs.stat()
+print fs.stat() # will test connections to all repos!
 print fs.stat('/%s/' % (testloc))
 print fs.stat('/%s/%s' % (testloc, testfile))
 
