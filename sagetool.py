@@ -16,7 +16,7 @@ def parse_path(path):
 	try:
 		location, resource = fs.split_location_from_path(path)
 		if location in fs.sites: return path
-	except sagefs.SageFSInvalidPathException: print 'excepted'
+	except sagefs.SageFSInvalidPathException: pass
 	location = choose_fs_with_hash(path)
 	if path[0] is not '/': path = '%s%s' % ('/', path) 
 	path = '/%s%s' % (location, path)
@@ -44,7 +44,20 @@ def write(path, data, create=False, append=True):
 		print 'File Not Found'
 
 
+def usage():
+	'sagetools.py'
+
+
 if __name__ == "__main__":
 	fs = sagefs.SageFS('savant', 'savant', 'savant')
-	write('/savi/hello.txt', 'hi andi!', True)
-	read('/savi/hello.txt', True)
+
+	try:
+		cmd = sys.argv[1]
+		path = sys.argv[2]
+		if cmd in 'write':
+			write(path, sys.argv[3], True)
+		elif cmd in 'read':
+			read(path, True)
+	except Exception:
+		usage()
+		sys.exit(-1)
