@@ -31,7 +31,6 @@ def read(path, create=False):
 	except sagefs.SageFSFileNotFoundException, e:
 		print 'File Not Found'
 
-
 def write(path, data, create=False, append=True):
 	path = parse_path(path)
 	try:
@@ -43,10 +42,8 @@ def write(path, data, create=False, append=True):
 	except sagefs.SageFSFileNotFoundException, e:
 		print 'File Not Found'
 
-
 def usage():
-	'sagetools.py'
-
+	'sagetools.py <read|write> <path> <data if write>'
 
 if __name__ == "__main__":
 	fs = sagefs.SageFS('savant', 'savant', 'savant')
