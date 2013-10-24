@@ -22,16 +22,6 @@ fs = sagefs.SageFS('savant', 'savant', 'savant')
 testloc = 'uvic'
 testfile = 'hello.txt'
 
-print "======== Testing stat() ========"
-print fs.stat() # will test connections to all repos!
-print fs.stat('/%s/' % (testloc))
-print fs.stat('/%s/%s' % (testloc, testfile))
-
-print "======== Testing list() ========"
-print fs.list()
-print fs.list('/%s/' % (testloc))
-print fs.list('/%s/%s' % (testloc, testfile))
-
 print "======== Testing open() & upload() ========"
 newtestloc = 'savi'
 teststr = 'sup mang'
@@ -42,6 +32,16 @@ f.close()
 fs.upload(testfile, '/%s/%s' % (newtestloc, testfile))
 print "uploaded file to /%s/%s" % (newtestloc, testfile)
 os.remove(testfile)
+
+print "======== Testing stat() ========"
+print fs.stat() # will test connections to all repos!
+print fs.stat('/%s/' % (testloc))
+print fs.stat('/%s/%s' % (testloc, testfile))
+
+print "======== Testing list() ========"
+print fs.list()
+print fs.list('/%s/' % (testloc))
+print fs.list('/%s/%s' % (testloc, testfile))
 
 print "======== Testing copy() ========"
 newtestfile = 'hi.txt'

@@ -42,7 +42,7 @@ import hosts
 
 #TODO's
 # - better exception handling stuff
-# - handle path querying in list command
+# - handle path querying (--prefix in swift) in list command
 
 class SageFSException(Exception): pass
 class SageFSInvalidPathException(SageFSException): pass
@@ -92,6 +92,7 @@ class SageFS():
         self.group = group
         self.user = user
         self.key = key
+        self.sites = sites
 
     def connect_to_filesystem(self, site):
         """ Creates a SwiftFS object, if we correctly connected 
@@ -99,6 +100,7 @@ class SageFS():
         authurl = get_authv1_url( site_to_host(site) )
         fs = SwiftFS(authurl, self.group, self.user, self.key)
         self.filesystems[site] = fs
+        return fs
 
     def split_location_from_path(self, path):
         """ A path looks like /location/path, split and return location, /path """
@@ -117,9 +119,10 @@ class SageFS():
         If no hostname matches a SageFSInvalidFilesystemException is raised """
         try: return self.filesystems[location]
         except KeyError:
-            if location not in swiftrepos.keys():
+            if location not in self.sites:
                 raise SageFSInvalidFilesystemException('Filesystem - %s - was not found' 
                                                     % (location))
+            else: return self.connect_to_filesystem(location)
             
 
     def open(self, path, *args, **kwargs):
@@ -149,7 +152,7 @@ class SageFS():
         else gets stats for all filesystems """
         if not path:
             resp = {}
-            for location in self.filesystems.keys():
+            for location in self.sites:
                 fs = self.get_filesystem(location)
                 resp[location] = fs.stat()
             return resp

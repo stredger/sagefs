@@ -9,25 +9,31 @@ for the full license
 
 from fabric.api import *
 import hosts
+import sys
 
 swiftrepos = hosts.proxies
-
+machines = swiftrepos.values()
 env.roledefs = {
-	'machines':swiftrepos.values()
+	'machines':machines
 }
 env.key_filename = '~/.ssh/st_rsa'
 
 
-def add_gfs_user(adminuser, adminkey, user, group, key):
+def add_sagefs_user(adminkey, user, group, key):
+	run('swauth-add-user -A http://%s:8080/auth -K %s -a %s %s %s' 
+		% (env.host_string, adminkey, group, user, key))
+		
 
-	for repo, addr in swiftrepos.iteritems():
-		print repo, addr
+def check_user(user, group, key, fromlocal=False):
+	if fromlocal: cmd = local
+	else: cmd = run
+
+	cmd('swift -A http://%s:8080/auth/v1.0 -U %s:%s -K %s stat' 
+		% (env.host_string, group, user, key))
 
 
+if __name__ == "__main__":
+	#if len(sys.argv) > 6:
 
-@roles('machines')
-def test_hosts():
-	run('echo running')
-
-
-execute(test_hosts)
+	#execute(add_sagefs_user, 'stepheniscool', 'savant', 'savant', 'savant', hosts=machines)
+	execute(check_user, 'savant', 'savant', 'savant', hosts=machines)
