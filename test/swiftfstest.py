@@ -11,17 +11,17 @@ for the full license
 
 import sys
 sys.path += ['..', '.']
-import gfs
+import sagefs
 
 testuser = 'savant'
 testgroup = 'savant'
 testkey = 'savant'
 
-for host in gfs.swiftrepos.values():
+for host in sagefs.swiftrepos.values():
 
     print "\n===== Testng host %s =====" % (host) 
-    auth_url = gfs.get_authv1_url(host)
-    fs = gfs.SwiftFS(auth_url, testgroup, testuser, testkey)
+    auth_url = sagefs.get_authv1_url(host)
+    fs = sagefs.SwiftFS(auth_url, testgroup, testuser, testkey)
     print "Authenticated"
 
     fname = 'hello.txt'
@@ -60,7 +60,7 @@ for host in gfs.swiftrepos.values():
     print "Lised fs: %s" % (listing)
 
     try: fs.move(copyname, fname)
-    except gfs.GFSFileExistsException: pass
+    except sagefs.SageFSFileExistsException: pass
     fs.move(copyname, fname, True)
     if fs.file_exists(copyname):
         print "Move failed"

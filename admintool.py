@@ -12,8 +12,22 @@ import hosts
 
 swiftrepos = hosts.proxies
 
+env.roledefs = {
+	'machines':swiftrepos.values()
+}
+env.key_filename = '~/.ssh/st_rsa'
+
 
 def add_gfs_user(adminuser, adminkey, user, group, key):
 
 	for repo, addr in swiftrepos.iteritems():
 		print repo, addr
+
+
+
+@roles('machines')
+def test_hosts():
+	run('echo running')
+
+
+execute(test_hosts)

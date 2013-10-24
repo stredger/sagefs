@@ -12,10 +12,10 @@ for the full license
 import sys
 sys.path += ['..', '.']
 import os
-import gfs
+import sagefs
 
-host = gfs.swiftrepos.values()[0]
-fs = gfs.SwiftFS(gfs.get_authv1_url(host), 'savant', 'savant', 'savant')
+host = sagefs.swiftrepos.values()[0]
+fs = sagefs.SwiftFS(sagefs.get_authv1_url(host), 'savant', 'savant', 'savant')
 
 
 print "======== Testing in mem file ========"

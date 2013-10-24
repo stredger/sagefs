@@ -8,13 +8,13 @@ for the full license
 """
 
 """
-GFS implementation. The GFS is a distributed store with a filesystem like api.
-The only object that needs to be instantiated is the GFS object. The filesystem
+SageFS implementation. The SageFS is a distributed store with a filesystem like api.
+The only object that needs to be instantiated is the SageFS object. The filesystem
 is interacted with through this object. (see README for info on users and accounts)
->>> fs = gfs.GFS(accountname, username, key)
+>>> fs = sagefs.SageFS(accountname, username, key)
 >>> fs.move('/repo1/file', '/repo2/file')
 
-Files are also opened throiugh a GFS object but can then be used like
+Files are also opened throiugh a SageFS object but can then be used like
 regular python file objects. 
 >>> f = fs.open('/repo/hi.txt')
 >>> print f.read()
@@ -27,7 +27,7 @@ twice, the already opened file object is returned!
 >>> f1 == f2
 >>> True
 
-There are two types of file objects gfs.open() can return, a purely in memory 
+There are two types of file objects sagefs.open() can return, a purely in memory 
 file (the default), or a tempfile on disk. Set the open arg 'inmem' to False for
 a file on disk. The files behave the same way regardless of type.
 """
@@ -44,12 +44,12 @@ import hosts
 # - better exception handling stuff
 # - handle path querying in list command
 
-class GFSException(Exception): pass
-class GFSInvalidPathException(GFSException): pass
-class GFSInvalidFilesystemException(GFSException): pass
-class GFSFileNotFoundException(GFSException): pass
-class GFSFileExistsException(GFSException): pass
-class GFSPermissionDenied(GFSException): pass
+class SageFSException(Exception): pass
+class SageFSInvalidPathException(SageFSException): pass
+class SageFSInvalidFilesystemException(SageFSException): pass
+class SageFSFileNotFoundException(SageFSException): pass
+class SageFSFileExistsException(SageFSException): pass
+class SageFSPermissionDenied(SageFSException): pass
 
 
 # this is our super important dict of swiftrepos!
@@ -58,16 +58,16 @@ swiftrepos = hosts.proxies
 
 def site_to_host(site):
     """ Find and return the hostname for the provided site.
-    If no hostname matches a GFSException is raised """
+    If no hostname matches a SageFSException is raised """
     try: return swiftrepos[site]
     except KeyError:
-        raise GFSException('No host matches site %s' % (site))
+        raise SageFSException('No host matches site %s' % (site))
 
 def get_authv1_url(host, port=8080):
     """ Given a host will generate the auth url required by swift """
     return 'http://%s:%s/auth/v1.0' % (host, port)
 
-def swift_to_gfs_exception(e, **kwargs):
+def swift_to_sagefs_exception(e, **kwargs):
     # check if we are a swiftclient.client exception
     # then parse on http_status
     # raise the appropreate exception
@@ -81,11 +81,11 @@ def can_retry_error_status(status):
 
 
 
-class GFS():
+class SageFS():
     """ The main geni filesystem object. Takes a user group and key, and 
     establishes connections to Swift repos. Connections are only established
-    when they are used the first time. The GFS object is designed to be the
-    only object that must be explicitly created to use the GFS. """
+    when they are used the first time. The SageFS object is designed to be the
+    only object that must be explicitly created to use the SageFS. """
 
     def __init__(self, group, user, key, sites=swiftrepos.keys()):
         self.filesystems = {}
@@ -103,10 +103,10 @@ class GFS():
     def split_location_from_path(self, path):
         """ A path looks like /location/path, split and return location, /path """
         if path[0] != '/': 
-            raise GFSInvalidPathException('%s - must start with /' % (path))
+            raise SageFSInvalidPathException('%s - must start with /' % (path))
         try: splitindex = path.index('/', 1)
         except ValueError: 
-            raise GFSInvalidPathException('%s - must contain a valid '
+            raise SageFSInvalidPathException('%s - must contain a valid '
                                           'swift repository name' % (path))
         location = path[1:splitindex]
         resource = path[splitindex+1:]
@@ -114,11 +114,11 @@ class GFS():
 
     def get_filesystem(self, location):
         """ Find and return the hostname as a string for the provided location.
-        If no hostname matches a GFSInvalidFilesystemException is raised """
+        If no hostname matches a SageFSInvalidFilesystemException is raised """
         try: return self.filesystems[location]
         except KeyError:
             if location not in swiftrepos.keys():
-                raise GFSInvalidFilesystemException('Filesystem - %s - was not found' 
+                raise SageFSInvalidFilesystemException('Filesystem - %s - was not found' 
                                                     % (location))
             
 
@@ -138,7 +138,7 @@ class GFS():
 
     def list(self, path=None):
         """ Lists all Files in the filesystem specified at 'path'. If 'path' 
-        is none, returns all the filesystem names in the GFS """
+        is none, returns all the filesystem names in the SageFS """
         if not path: return ['/%s/' % (k) for k in self.filesystems.keys()]
         location, resource = self.split_location_from_path(path)
         fs = self.get_filesystem(location)
@@ -171,7 +171,7 @@ class GFS():
         newfs = self.get_filesystem(newlocation)
         # check to see if we are overwriting anything
         if not overwrite and newfs.file_exists(newresource):
-            raise GFSFileExistsException('File %s already exists' % (newpath))
+            raise SageFSFileExistsException('File %s already exists' % (newpath))
         local = True
         if origresource not in origfs.localfiles:
             # make sure the orig file is local to its fs
@@ -181,7 +181,7 @@ class GFS():
         # upload as a new resource
         try: newfs.upload(newresource, origfd)
         except swiftclient.client.ClientException as e:
-            raise GFSException('HTTP Error: %s - %s' 
+            raise SageFSException('HTTP Error: %s - %s' 
                                % (e.http_status, e.http_reason))
         if not local: origfd.close() 
 
@@ -198,11 +198,11 @@ class GFS():
         if not resource: resource = localpath
         fs = self.get_filesystem(location)
         if not overwrite and fs.file_exists(swiftpath):
-            raise GFSFileExistsException('File %s already exists' % (swiftpath))
+            raise SageFSFileExistsException('File %s already exists' % (swiftpath))
         fptr = open(localpath)
         try: fs.upload(resource, fptr)
         except swiftclient.client.ClientException as e:
-            raise GFSException('HTTP Error: %s - %s' 
+            raise SageFSException('HTTP Error: %s - %s' 
                                % (e.http_status, e.http_reason))
         fptr.close()
 
@@ -234,7 +234,7 @@ class SwiftFS():
         try:
             url, token = swiftclient.get_auth(self.authurl, account, self.key)
         except swiftclient.client.ClientException as e:
-            raise GFSException('HTTP Error: %s - %s' 
+            raise SageFSException('HTTP Error: %s - %s' 
                                % (e.http_status, e.http_reason))
         self.storeurl = url
         self.storetoken = token
@@ -244,7 +244,7 @@ class SwiftFS():
         if not self.container_exists(self.container):
             try: self.create_container(self.container)
             except swiftclient.client.ClientException as e:
-                raise GFSException('HTTP Error: %s - %s' 
+                raise SageFSException('HTTP Error: %s - %s' 
                                    % (e.http_status, e.http_reason))
                                    
     def swift_command(self, cmd, args, retry):
@@ -313,17 +313,17 @@ class SwiftFS():
     def file_exists(self, path):
         """ Return True if a file exists at 'path', False otherwise """
         try: self.stat(path)     
-        except GFSFileNotFoundException: return False
+        except SageFSFileNotFoundException: return False
         return True
 
     def container_exists(self, container):
         """ Return True container exists, False otherwise. Throws a 
-        GFSException if an HTTP error is encoutered """
+        SageFSException if an HTTP error is encoutered """
         try: self.head_container(container)
         except swiftclient.client.ClientException as e:
             if e.http_status == 404: 
                 return False
-            else: raise GFSException('HTTP Error: %s - %s'
+            else: raise SageFSException('HTTP Error: %s - %s'
                                      % (e.http_status, e.http_reason))
         return True
 
@@ -334,8 +334,8 @@ class SwiftFS():
         If the 'create' flag is True then the file will be created in the SwiftFS
         if not present already. Two file like objects can be returned, one that
         exists purely in memory, 'inmem'=True, and one that exists as a temp file
-        'inmem'=False. Throws a GFSFileNotFoundException if the file doesn't
-        exists and we are not creating one, and GFSException for HTTP errors """
+        'inmem'=False. Throws a SageFSFileNotFoundException if the file doesn't
+        exists and we are not creating one, and SageFSException for HTTP errors """
         fd = self.localfiles.get(path, None)
         # if the file is already open, just return the fd.
         #  We could raise an exception, should not try to open a file twice
@@ -344,9 +344,9 @@ class SwiftFS():
         except swiftclient.client.ClientException as e:
             if e.http_status == 404:
                 if create: data = ''
-                else: raise GFSFileNotFoundException('File %s/%s not found.' 
+                else: raise SageFSFileNotFoundException('File %s/%s not found.' 
                                                      % (self.storeurl, path))
-            else: raise GFSException('HTTP Error: %s - %s' 
+            else: raise SageFSException('HTTP Error: %s - %s' 
                                      % (e.http_status, e.http_reason))
         if inmem: fd = SwiftMemFile(data, path, self)
         else: fd = SwiftDiskFile(data, path, self)
@@ -355,36 +355,36 @@ class SwiftFS():
         return fd
 
     def remove(self, path):
-        """ Removes a respourse at 'path' in the SwiftFS. Throws GFSException
-        if an HTTP error occurs and GFSFileNotFoundException if the resource
+        """ Removes a respourse at 'path' in the SwiftFS. Throws SageFSException
+        if an HTTP error occurs and SageFSFileNotFoundException if the resource
         doesn't exist """
         try: self.delete(path)
         except swiftclient.client.ClientException as e:
             if e.http_status == 404:                 
-                raise GFSFileNotFoundException('Resource %s not found' 
+                raise SageFSFileNotFoundException('Resource %s not found' 
                                                % (path))
-            else: raise GFSException('HTTP Error: %s - %s' 
+            else: raise SageFSException('HTTP Error: %s - %s' 
                                      % (e.http_status, e.http_reason))
 
     def list(self, path=None):
         """ Lists all files present in the SwiftFS. Throws a
-        GFSException if an HTTP error occurs. """
+        SageFSException if an HTTP error occurs. """
         try: resp, objects = self.list_container(path)
         except swiftclient.client.ClientException as e:
-            raise GFSException('HTTP Error: %s - %s' 
+            raise SageFSException('HTTP Error: %s - %s' 
                                % (e.http_status, e.http_reason))
         return objects
 
     def stat(self, path=None):
         """ Gets the stats of a file by heading it in Swift. Throws
-        a GFSException if an HTTP error is encoutered, and a 
-        GFSFileNotFoundException if the file doesn't exists """
+        a SageFSException if an HTTP error is encoutered, and a 
+        SageFSFileNotFoundException if the file doesn't exists """
         try: resp = self.head(path)
         except swiftclient.client.ClientException as e:
             if e.http_status == 404: 
-                raise GFSFileNotFoundException('Resource %s not found' 
+                raise SageFSFileNotFoundException('Resource %s not found' 
                                                % (path))
-            else: raise GFSException('HTTP Error: %s - %s'
+            else: raise SageFSException('HTTP Error: %s - %s'
                                      % (e.http_status, e.http_reason))
         return resp
 
@@ -394,7 +394,7 @@ class SwiftFS():
         if frompath == topath: return
         local = True
         if not overwrite and self.file_exists(topath):
-            raise GFSFileExistsException('File %s already exists' % (topath))
+            raise SageFSFileExistsException('File %s already exists' % (topath))
         # get the fd for the file like object to move
         if frompath not in self.localfiles:
             local = False

@@ -8,16 +8,16 @@ for the full license
 """
 
 """ 
-A Test for various GFS functionality
+A Test for various SageFS functionality
 """
 
 import sys
 sys.path += ['..', '.']
 import os
-import gfs
+import sagefs
 
 
-fs = gfs.GFS('savant', 'savant', 'savant')
+fs = sagefs.SageFS('savant', 'savant', 'savant')
 
 testloc = 'uvic'
 testfile = 'hello.txt'
