@@ -43,6 +43,7 @@ import hosts
 #TODO's
 # - better exception handling stuff
 # - handle path querying (--prefix in swift) in list command
+# - make this an actual python package
 
 class SageFSException(Exception): pass
 class SageFSInvalidPathException(SageFSException): pass
