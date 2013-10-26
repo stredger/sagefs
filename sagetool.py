@@ -42,18 +42,19 @@ def write(path, data, create=False, append=True):
 		print 'File Not Found'
 
 def usage():
-	'sagetools.py <read|write> <path> <data if write>'
+	print 'sagetools.py <read|write> <path> <data if write>'
 
 if __name__ == "__main__":
 	fs = sagefs.SageFS('savant', 'savant', 'savant')
 
-	try:
-		cmd = sys.argv[1]
-		path = sys.argv[2]
-		if cmd in 'write':
-			write(path, sys.argv[3], True)
-		elif cmd in 'read':
-			read(path, True)
-	except Exception:
-		usage()
-		sys.exit(-1)
+	#try:
+	cmd = sys.argv[1]
+	path = sys.argv[2]
+	if cmd in 'write':
+		write(path, sys.argv[3], True)
+	elif cmd in 'read':
+		read(path, True)
+	# except Exception, e:
+	# 	print e
+	# 	usage()
+	# 	sys.exit(-1)
