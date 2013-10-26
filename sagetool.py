@@ -34,6 +34,7 @@ def read(path, create=False):
 def write(path, data, create=False, append=True):
 	path = parse_path(path)
 	try:
+		f = fs.open(path, create=create)
 		if append: f.seek(2) # 2 is seek end
 		# dont sync on write as we will sync on close
 		f.write(data, sync=False)
