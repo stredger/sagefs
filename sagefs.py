@@ -32,6 +32,9 @@ file (the default), or a tempfile on disk. Set the open arg 'inmem' to False for
 a file on disk. The files behave the same way regardless of type.
 """
 
+# this is just so we can find swiftclient in my dropbox
+import sys
+sys.path += ['.', '..']
 
 import swiftclient
 import StringIO

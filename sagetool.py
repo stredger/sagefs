@@ -35,7 +35,7 @@ def write(path, data, create=False, append=True):
 	path = parse_path(path)
 	try:
 		f = fs.open(path, create=create)
-		if append: f.seek(2) # 2 is seek end
+		if append: f.seek(0, 2) # 2 is seek end
 		# dont sync on write as we will sync on close
 		f.write(data, sync=False)
 		f.close()
@@ -48,7 +48,7 @@ def usage():
 if __name__ == "__main__":
 	fs = sagefs.SageFS('savant', 'savant', 'savant')
 
-	#try:
+	# try:
 	cmd = sys.argv[1]
 	path = sys.argv[2]
 	if cmd in 'write':
