@@ -7,10 +7,8 @@ See LICENSE.txt or visit www.geni.net/wp-content/uploads/2009/02/genipublic.pdf
 for the full license
 """
 
-# a dictionary of all the proxies in the gfs
-proxies = {	'uvic' : 'grack01.uvic.trans-cloud.net',
-          	'savi' : '142.104.64.68',
-          	'gpo' : 'pcvm4-2.instageni.gpolab.bbn.com',
-          	'missouri' : 'pcvm4-2.instageni.rnet.missouri.edu',
-          	'nyu' : 'pcvm5-2.genirack.nyu.edu'
-          }
+# a dictionary of all the swift proxies in sage
+swift = {	'savi':'142.104.64.68' }
+
+# mongo instances
+mongo = { 'local':'localhost' }

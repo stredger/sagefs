@@ -2,7 +2,12 @@
 sagefs.py, python module for interaction with the SageFS, a distributed filesystem.
 
 
-1. Configuration
+1. Dependencies
+
+	Requires the python swiftclient module, which can be grabbed from here: https://github.com/openstack/python-swiftclient.git
+
+
+2. Configuration
 
   a. Swift Repositories
   	The SageFS uses Swift repositories which should be set up accordingly.
@@ -17,7 +22,7 @@ sagefs.py, python module for interaction with the SageFS, a distributed filesyst
   	and key. (swift-setup has functions to do this)
 
 
-2. Usage
+3. Usage
 
 	The sagefs is a python module imported to access a distributed persistent store.
 	Files are mapped to locations based on their supplied path. To access a file

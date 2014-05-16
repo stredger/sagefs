@@ -2,7 +2,19 @@
 import sagefs
 import sys
 
+
 fs = None
+def connect_to_sage(account, user, key):
+	global fs
+	fs = sagefs.SageFS(account, user, key)
+
+def check_fs():
+	#if fs is None:
+	return
+	connect_to_sage('savant', 'savant', 'savant')
+		#raise sagefs.SageFSNotConnectedException(
+		#	'No SageFS. Try calling connect_to_sage(...)!')	
+
 
 def quick_hash(s):
 	sum = 0
@@ -23,6 +35,7 @@ def parse_path(path):
 	return path
 
 def read(path, create=False):
+	check_fs()
 	path = parse_path(path)
 	try: 
 		f = fs.open(path, create=create)
@@ -32,6 +45,7 @@ def read(path, create=False):
 		print 'File Not Found'
 
 def write(path, data, create=False, append=True):
+	check_fs()
 	path = parse_path(path)
 	try:
 		f = fs.open(path, create=create)
@@ -39,23 +53,24 @@ def write(path, data, create=False, append=True):
 		# dont sync on write as we will sync on close
 		f.write(data, sync=False)
 		f.close()
+		return path
 	except sagefs.SageFSFileNotFoundException, e:
 		print 'File Not Found'
 
 def usage():
 	print 'sagetools.py <read|write> <path> <data if write>'
 
-if __name__ == "__main__":
-	fs = sagefs.SageFS('savant', 'savant', 'savant')
 
-	# try:
-	cmd = sys.argv[1]
-	path = sys.argv[2]
-	if cmd in 'write':
-		write(path, sys.argv[3], True)
-	elif cmd in 'read':
-		read(path, True)
-	# except Exception, e:
-	# 	print e
-	# 	usage()
-	# 	sys.exit(-1)
+if __name__ == "__main__":
+	connect_to_sage('syndicate', 'syndicate', 'syndicate')
+
+	try:
+		cmd = sys.argv[1]
+		path = sys.argv[2]
+		if cmd in 'write':
+			write(path, sys.argv[3], True)
+		elif cmd in 'read':
+			read(path, True)
+	except IndexError:
+		usage()
+		sys.exit(-1)
