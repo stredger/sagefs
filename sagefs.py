@@ -459,7 +459,13 @@ class MongoFS():
   def download(self, fullpath):
     selectrecord = self.create_select_record(fullpath)
     record = self.collection.find_one(selectrecord)
-    return record['data'].decode() if record else None
+    if not record: return None
+    try:
+      # try to decode string, if we cant just return the
+      #  actual values
+      return record['data'].decode()
+    except UnicodeDecodeError, e:
+      return record['data']
 
   def open(self, path, create=False, inmem=True):
     fd = self.localfiles.get(path, None)
