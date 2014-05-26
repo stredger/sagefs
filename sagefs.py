@@ -62,17 +62,6 @@ swiftrepos = hosts.swift
 mongorepos = hosts.mongo
 
 
-def site_to_host(site):
-  """ Find and return the hostname for the provided site.
-  If no hostname matches a SageFSException is raised """
-  try: return swiftrepos[site]
-  except KeyError:
-    raise SageFSException('No host matches site %s' % (site))
-
-def get_authv1_url(host, port=8080):
-  """ Given a host will generate the auth url required by swift """
-  return 'http://%s:%s/auth/v1.0' % (host, port)
-
 def swift_to_sagefs_exception(e, **kwargs):
   # check if we are a swiftclient.client exception
   # then parse on http_status
@@ -86,25 +75,29 @@ def can_retry_error_status(status):
   return False
 
 
-
 class SageFS():
   """ The main geni filesystem object. Takes a user group and key, and 
   establishes connections to Swift repos. Connections are only established
   when they are used the first time. The SageFS object is designed to be the
   only object that must be explicitly created to use the SageFS. """
 
-  def __init__(self, group, user, key, sites=swiftrepos.keys()+mongorepos.keys()):
+  def __init__(self):
     self.filesystems = {}
-    self.group = group
-    self.user = user
-    self.key = key
-    self.sites = sites
+    self.swiftrepos = hosts.swift
+    self.mongorepos = hosts.mongo
+    self.sites = self.swiftrepos.keys() + self.mongorepos.keys()
 
   def connect_to_filesystem(self, site):
     """ Creates a FS object, if we correctly connected 
     and aquired an auth token """
-    authurl = get_authv1_url( site_to_host(site) )
-    fs = SwiftFS(authurl, self.group, self.user, self.key)
+    fs = None
+    if site in self.swiftrepos.keys():
+      repo = self.swiftrepos[site]
+      fs = SwiftFS(repo.get_authv1_url(), repo.group, repo.user, repo.key)
+    elif site in self.mongorepos.keys():
+      repo = self.mongorepos[site]
+      fs = MongoFS(repo.host, repo.port, repo.database, repo.collection)
+    else: raise SageFSException('No host matches site %s' % (site))
     self.filesystems[site] = fs
     return fs
 
@@ -445,6 +438,10 @@ class MongoFS():
     bsondata = bson.binary.Binary(data)
     return {'$set': {'data': bsondata}}
 
+  def file_exists(self, fullpath):
+    if self.stat(fullpath): return True
+    return False
+
   def upload(self, fullpath, fd):
     data = str(fd.read())
     selectrecord = self.create_select_record(fullpath)
@@ -473,8 +470,10 @@ class MongoFS():
     if create: fd.sync()
     return fd
 
-  def stat(self, path=None):
-    raise SageFSException('MongoFS: Stat not Implemented')
+  def stat(self, fullpath):
+    selectrecord = self.create_select_record(fullpath)
+    return self.collection.find_one(selectrecord)
+
   def copy(self, frompath, topath, overwrite=False):
     raise SageFSException('MongoFS: Copy not Implemented')
   def move(self, oldpath, newpath, overwrite=False):
@@ -574,3 +573,13 @@ class SageDiskFile(SageFile, file):
   def close(self):
     SageFile.close(self)
     os.unlink(self.diskname)
+
+
+a = SageFS()
+a.connect_to_filesystem('savi')
+a.connect_to_filesystem('local')
+
+
+
+b = MongoFS()
+print b.file_exists('pooo')

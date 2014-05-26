@@ -11,8 +11,7 @@ from fabric.api import *
 import hosts
 import sys
 
-swiftrepos = hosts.proxies
-machines = swiftrepos.values()
+machines = [m.host for m in hosts.swift.values()]
 env.roledefs = {
 	'machines':machines
 }
@@ -35,5 +34,5 @@ def check_user(user, group, key, fromlocal=False):
 if __name__ == "__main__":
 	#if len(sys.argv) > 6:
 
-	execute(add_sagefs_user, 'stepheniscool', 'syndicate', 'syndicate', 'syndicate', hosts=machines)
-	execute(check_user, 'syndicate', 'syndicate', 'syndicate', hosts=machines)
+	execute(add_sagefs_user, 'stepheniscool', 'savant', 'savant', 'savant', hosts=machines)
+	execute(check_user, 'savant', 'savant', 'savant', hosts=machines)

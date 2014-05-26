@@ -19,7 +19,7 @@ import sagefs
 
 fs = sagefs.SageFS('savant', 'savant', 'savant')
 
-testloc = 'uvic'
+testloc = 'savi'
 testfile = 'hello.txt'
 
 print "======== Testing open() & upload() ========"
