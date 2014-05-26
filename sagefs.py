@@ -40,7 +40,11 @@ import swiftclient
 import StringIO
 import tempfile
 import os
-import hosts
+
+try: 
+  if hosts: pass
+except Exception: import hosts
+
 import pymongo
 import bson.binary
 
@@ -573,13 +577,3 @@ class SageDiskFile(SageFile, file):
   def close(self):
     SageFile.close(self)
     os.unlink(self.diskname)
-
-
-a = SageFS()
-a.connect_to_filesystem('savi')
-a.connect_to_filesystem('local')
-
-
-
-b = MongoFS()
-print b.file_exists('pooo')
