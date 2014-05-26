@@ -495,7 +495,7 @@ class MongoFS():
     # return [f for f in self.collection.find()]
 
   def remove(self, fullpath=None):
-    record = create_select_record(fullpath) if fullpath else None
+    record = self.create_select_record(fullpath) if fullpath else None
     self.collection.remove(record)
 
 
