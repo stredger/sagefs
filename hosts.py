@@ -43,5 +43,5 @@ swift = {
 # mongo instances
 mongo = {
   # 'local':MongoHost('localhost', 27017, 'Sage', 'fsdata')
-  'mongo':MongoHost('a.microbe.vikelab.emulab.net', 27017, 'Sage', 'fsdata')
+  'mongo':MongoHost('localhost', 27017, 'Sage', 'fsdata') # cant funkin make this work with non localhost
 }
