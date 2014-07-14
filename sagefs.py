@@ -33,17 +33,15 @@ a file on disk. The files behave the same way regardless of type.
 """
 
 # this is just so we can find swiftclient in my dropbox
-import sys
-sys.path += ['.', '..']
+# import sys
+# sys.path += ['.', '..']
 
 import swiftclient
 import StringIO
 import tempfile
 import os
 
-try: 
-  if hosts: pass
-except Exception: import hosts
+import hosts
 
 import pymongo
 import bson.binary
@@ -61,9 +59,6 @@ class SageFSFileExistsException(SageFSException): pass
 class SageFSPermissionDenied(SageFSException): pass
 class SageFSNotConnectedException(SageFSException): pass
 
-
-swiftrepos = hosts.swift
-mongorepos = hosts.mongo
 
 
 def swift_to_sagefs_exception(e, **kwargs):
@@ -147,7 +142,12 @@ class SageFS():
   def list(self, path=None):
     """ Lists all Files in the filesystem specified at 'path'. If 'path' 
     is none, returns all the filesystem names in the SageFS """
-    if not path: return ['/%s/' % (k) for k in self.filesystems.keys()]
+    if not path: 
+      resp = {}
+      for location in self.sites:
+        fs = self.get_filesystem(location)
+        resp[location] = fs.list()
+      return resp
     location, resource = self.split_location_from_path(path)
     fs = self.get_filesystem(location)
     return fs.list(resource)
@@ -436,7 +436,7 @@ class MongoFS():
 
   def create_select_record(self, fullpath):
     filepath, filename = os.path.split(fullpath)
-    return {'path':filepath ,'name':filename}
+    return {'path':filepath, 'name':filename}
 
   def create_update_record(self, data):
     bsondata = bson.binary.Binary(data)

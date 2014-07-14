@@ -4,9 +4,9 @@ import sys
 
 
 fs = None
-def connect_to_sage(account, user, key):
+def connect_to_sage():
 	global fs
-	fs = sagefs.SageFS(account, user, key)
+	fs = sagefs.SageFS()
 
 def check_fs():
 	#if fs is None:
@@ -62,7 +62,7 @@ def usage():
 
 
 if __name__ == "__main__":
-	connect_to_sage('syndicate', 'syndicate', 'syndicate')
+	connect_to_sage()
 
 	try:
 		cmd = sys.argv[1]

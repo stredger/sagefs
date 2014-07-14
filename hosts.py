@@ -37,11 +37,12 @@ class MongoHost(SageHost):
 # a dictionary of all the swift proxies in sage
 swift = {
   # 'savi':SwiftHost('142.104.64.68', 8080, 'savant', 'savant', 'savant'),
-  'swift':SwiftHost('a.microbe.vikelab.emulab.net', 8080, 'savant', 'savant', 'savant'),
+  # 'swift':SwiftHost('a.microbe.vikelab.emulab.net', 8080, 'savant', 'savant', 'savant'),
+  # 'swift2':SwiftHost('node0.syn.vikelab.emulab.net', 8080, 'savant', 'savant', 'savant')
 }
 
 # mongo instances
 mongo = {
-  # 'local':MongoHost('localhost', 27017, 'Sage', 'fsdata')
-  'mongo':MongoHost('localhost', 27017, 'Sage', 'fsdata') # cant funkin make this work with non localhost
+  'local':MongoHost('localhost', 27017, 'Sage', 'fsdata')
+  # 'mongo':MongoHost('localhost', 27017, 'Sage', 'fsdata') # cant funkin make this work with non localhost
 }

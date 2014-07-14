@@ -19,7 +19,7 @@ env.key_filename = '~/.ssh/st_rsa'
 
 
 def add_sagefs_user(adminkey, user, group, key):
-	run('swauth-add-user -A http://%s:8080/auth -K %s -a %s %s %s' 
+	run('swauth-add-user -A http://%s:8080/auth -K %s -a %s %s %s'
 		% (env.host_string, adminkey, group, user, key))
 		
 
