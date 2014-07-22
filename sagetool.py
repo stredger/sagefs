@@ -9,12 +9,9 @@ def connect_to_sage():
 	fs = sagefs.SageFS()
 
 def check_fs():
-	#if fs is None:
-	return
-	connect_to_sage('savant', 'savant', 'savant')
-		#raise sagefs.SageFSNotConnectedException(
-		#	'No SageFS. Try calling connect_to_sage(...)!')	
-
+	if fs is None:
+		connect_to_sage()
+		
 
 def quick_hash(s):
 	sum = 0

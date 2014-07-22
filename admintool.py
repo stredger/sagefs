@@ -34,5 +34,5 @@ def check_user(user, group, key, fromlocal=False):
 if __name__ == "__main__":
 	#if len(sys.argv) > 6:
 
-	execute(add_sagefs_user, 'stepheniscool', 'savant', 'savant', 'savant', hosts=machines)
-	execute(check_user, 'savant', 'savant', 'savant', hosts=machines)
+	execute(add_sagefs_user, 'stepheniscool', 'sagefs', 'stredger', 'thebestpass', hosts=machines)
+	execute(check_user, 'sagefs', 'stredger', 'thebestpass', hosts=machines)

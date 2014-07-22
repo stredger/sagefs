@@ -88,7 +88,7 @@ class SageFS():
 
   def connect_to_filesystem(self, site):
     """ Creates a FS object, if we correctly connected 
-    and aquired an auth token """
+    and acquired an auth token """
     fs = None
     if site in self.swiftrepos.keys():
       repo = self.swiftrepos[site]
@@ -107,7 +107,7 @@ class SageFS():
     try: splitindex = path.index('/', 1)
     except ValueError: 
       raise SageFSInvalidPathException('%s - must contain a valid '
-                      'swift repository name' % (path))
+                      'repository name' % (path))
     location = path[1:splitindex]
     resource = path[splitindex+1:]
     return location, resource
@@ -412,9 +412,9 @@ class SwiftFS():
       tofd = self.localfiles.get(topath, None)
       if tofd: tofd.close()
     # upload under new name
-    fd.swiftname = topath
+    fd.sagename = topath
     fd.sync()
-    fd.swiftname = frompath
+    fd.sagename = frompath
     if not local: fd.close()
 
   def move(self, oldpath, newpath, overwrite=False):
@@ -578,7 +578,6 @@ class SageDiskFile(SageFile, file):
     file.__init__(self, name, 'rw+b')
     file.write(self, data)
     file.seek(self, 0)
-
 
   def close(self):
     SageFile.close(self)

@@ -7,6 +7,9 @@ See LICENSE.txt or visit www.geni.net/wp-content/uploads/2009/02/genipublic.pdf
 for the full license
 """
 
+swift = None
+mongo = None
+
 class SageHost():
   def __init__(self, host, port):
     self.host = host
@@ -32,17 +35,28 @@ class MongoHost(SageHost):
     self.collection = collection
 
 
+def update_swift_host(host, user=None, group=None, key=None):
+  if user: host.user = user
+  if group: host.group = group
+  if key: host.key = key
+
+def update_all_swift_hosts(user=None, group=None, key=None):
+  for host in swift.values():
+    update_swift_host(host, user, group, key)
+
+
 
 
 # a dictionary of all the swift proxies in sage
 swift = {
-  # 'savi':SwiftHost('142.104.64.68', 8080, 'savant', 'savant', 'savant'),
-  # 'swift':SwiftHost('a.microbe.vikelab.emulab.net', 8080, 'savant', 'savant', 'savant'),
-  # 'swift2':SwiftHost('node0.syn.vikelab.emulab.net', 8080, 'savant', 'savant', 'savant')
+  'vic':SwiftHost('142.104.17.135', 8080, 'sagefs', 'stredger', 'thebestpass'),
+  'tor':SwiftHost('142.150.208.220', 8080, 'sagefs', 'stredger', 'thebestpass'),
+  'carl':SwiftHost('134.117.57.138', 8080, 'sagefs', 'stredger', 'thebestpass')
+  # 'local':SwiftHost('localhost', 8080, 'sagefs', 'savant', 'savant')
 }
 
 # mongo instances
 mongo = {
-  'local':MongoHost('localhost', 27017, 'Sage', 'fsdata')
+  # 'local':MongoHost('localhost', 27017, 'Sage', 'fsdata')
   # 'mongo':MongoHost('localhost', 27017, 'Sage', 'fsdata') # cant funkin make this work with non localhost
 }

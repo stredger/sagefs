@@ -14,64 +14,135 @@ sys.path += ['..', '.']
 import os
 import sagefs
 
-host = sagefs.swiftrepos.values()[0]
-print 'testing on %s' % (host)
-fs = sagefs.SwiftFS(sagefs.get_authv1_url(host), 'savant', 'savant', 'savant')
+from testcommon import *
+
+name,host = sagefs.hosts.swift.items()[0]
+print 'testing on %s' % (name)
+fs = sagefs.SwiftFS(host.get_authv1_url(), host.group, host.user, host.key)
 
 
 print '======== Testing in mem file ========'
 
 fname = 'hello.txt'
+try: fs.remove(fname)
+except sagefs.SageFSFileNotFoundException: pass
+
+
+testname = 'open mem'
 f = fs.open(fname, True, True)
 if not f:
-    print 'Failed to open in mem file'
-    sys.exit()
-print 'Opened in mem file %s' % (fname)
+  testfailed(testname)
+  print 'Failed to open %s in mem' % (fname)
+  sys.exit()
+testpassed(testname)
+print 'Opened %s in mem' % (fname)
 
+
+testname = 'writelist mem'
 writelist = ['hello', 'man']
 f.writelines(writelist)
 f.seek(0)
-print 'wrote to %s file, and read %s' % (writelist, f.read())
+contents = f.read()
+f.seek(0)
+if not contents == ''.join(writelist):
+  testfailed(testname)
+  print 'write failed, contents: "%s" do not match what was written "%s"' % (contents, ''.join(writelist))
+else:
+  testpassed(testname)
+  print 'wrote %s to %s, and read %s' % (writelist, fname, contents)
+
 
 writestr = 'yea yea yea'
 f.write(writestr)
 f.seek(0)
-print 'wrote to %s file, and read %s' % (writestr, f.read())
+contents = f.read()
+f.seek(0)
+if not contents == writestr:
+  testfailed(testname)
+  print 'write failed, contents: "%s" do not match what was written "%s"' % (contents, writestr)
+else:
+  testpassed(testname)
+  print 'wrote %s to %s, and read %s' % (writestr, fname, contents)
 
+
+testname = 'todisk mem'
 f.todisk(fname)
 f.close()
-print 'Put %s to disk' % (fname)
-
+print 'Put %s to local disk' % (fname)
 f = open(fname)
-print 'Read file %s, from disk. %s' % (fname, f.read)
+contents = f.read()
+if not contents == writestr:
+  testfailed(testname)
+  print 'todisk read/write failed, contents: "%s" do not match what was written "%s"' % (contents, writestr)
+else:
+  testpassed(testname)
+  print 'Read file %s, from disk. %s' % (fname, contents)
 f.close()
 os.remove(fname)
 
 
-print '======== Testing on disk file ========'
+
+print '\n======== Testing on disk file ========'
 
 fname = 'hello.txt'
+
+try: fs.remove(fname)
+except sagefs.SageFSFileNotFoundException: pass
+
+
+testname = 'open disk'
 f = fs.open(fname, True, False)
 if not f:
-    print 'Failed to open on disk file'
-    sys.exit()
-print 'Opened in mem file %s' % (fname)
+  testfailed(testname)  
+  print 'Failed to open on disk file'
+  sys.exit()
+testpassed(testname)
+print 'Opened %s in mem' % (fname)
 
+
+testname = 'writelines disk'
 writelist = ['hello', 'man']
 f.writelines(writelist)
 f.seek(0)
-print 'wrote %s to file, and read %s' % (writelist, f.read())
+contents = f.read()
+f.seek(0)
+if not contents == ''.join(writelist):
+  testfailed(testname)
+  print 'write failed, contents: "%s" do not match what was written "%s"' % (contents, ''.join(writelist))
+else: 
+  testpassed(testname)
+  print 'wrote %s to %s, and read %s' % (writelist, fname, contents)
 
+
+testname = 'write disk'
+f.seek(0)
 writestr = 'yea yea yea'
 f.write(writestr)
 f.seek(0)
-print 'wrote %s to file, and read %s' % (writestr, f.read())
+contents = f.read()
+f.seek(0)
+if not contents == writestr:
+  testfailed(testname)
+  print 'write failed, contents: "%s" do not match what was written "%s"' % (contents, writestr)
+else: 
+  testpassed(testname)
+  print 'wrote %s to %s, and read %s' % (writestr, fname, contents)
 
+
+testname = 'todisk disk'
 f.todisk(fname)
 f.close()
 print 'Put %s to disk' % (fname)
 
 f = open(fname)
-print 'Read file %s, from disk. %s' % (fname, f.read())
+contents = f.read()
+if not contents == writestr:
+  testfailed(testname)
+  print 'todisk read/write failed, contents: "%s" do not match what was written "%s"' % (contents, writestr)
+else:
+  testpassed(testname)
+  print 'Read file %s, from disk. %s' % (fname, contents)
 f.close()
 os.remove(fname)
+
+fs.remove(fname)

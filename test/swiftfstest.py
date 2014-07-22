@@ -13,21 +13,19 @@ import sys
 sys.path += ['..', '.']
 import sagefs
 
-testuser = 'savant'
-testgroup = 'savant'
-testkey = 'savant'
+fs = sagefs.SageFS()
 
-for host in sagefs.swiftrepos.values():
+for name,host in sagefs.hosts.swift.items():
 
-    print '\n===== Testing host %s =====' % (host) 
-    auth_url = sagefs.get_authv1_url(host)
-    fs = sagefs.SwiftFS(auth_url, testgroup, testuser, testkey)
+    print '\n===== Testing host %s =====' % (name) 
+    auth_url = host.get_authv1_url()
+    fs = sagefs.SwiftFS(auth_url, host.group, host.user, host.key)
     print 'Authenticated'
 
     fname = 'hello.txt'
-    cexists = fs.container_exists(testgroup)
+    cexists = fs.container_exists(host.user)
     fexists = fs.file_exists(fname)
-    print 'Container %s exists? %s\nFile %s exists? %s' % (testgroup, cexists, fname, fexists)
+    print 'Container %s exists? %s\nFile %s exists? %s' % (host.user, cexists, fname, fexists)
 
     f = fs.open(fname, True)
     print 'Opened file %s with create flag' % (fname)
@@ -51,6 +49,7 @@ for host in sagefs.swiftrepos.values():
 
     copyname = 'hello2.txt'
     fs.copy(fname, copyname, True)
+
     if not fs.file_exists(copyname):
         print 'Copy failed'
         sys.exit()
