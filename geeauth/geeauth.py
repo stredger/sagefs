@@ -1,6 +1,4 @@
 
-import sys
-import urllib
 import requests
 from BeautifulSoup import BeautifulSoup
 import json
@@ -11,7 +9,6 @@ import urlparse
 from requests.adapters import HTTPAdapter
 from requests.packages.urllib3.poolmanager import PoolManager
 import ssl
-
 
 class RequestsSSLv3Adapter(HTTPAdapter):
   def init_poolmanager(self, connections, maxsize, block=False):
@@ -28,12 +25,35 @@ def get_geni_identity_providers():
     providers[rp['DisplayNames'][0]['value']] = rp['entityID']
   return providers
 
+idproviders = {}
+
+def set_idproviders():
+  global idproviders
+  idproviders = get_geni_identity_providers()
+
+def get_idprovider_url(idprovider, retry=True):
+  # only get the idproviders when we have a key error as 
+  #  it takes a while to get them
+  try: return idproviders[idprovider]
+  except KeyError, e:
+    if retry:
+      set_idproviders()
+      return get_idprovider_url(idprovider, False)
+    raise e
+
 
 def parse_url_query_params(url):
   return urlparse.parse_qs(urlparse.urlparse(url).query)
 
 
-def get_geni_auth_session(uname, password, idprovider):
+
+def authenticate_with_gee(uname, password, idprovider):
+  """ Authenticate with GEE via the openid protocol. 
+  We actually do two redirects here: GEE -> GENI Portal -> Open id provider 
+  We could technically go straight to the GENI Portal but we area really
+  related to the GEE so if somehow the GEE protocol changes we dont have to 
+  change anything here. Also the gee uses a really nice library for openid 
+  auth so we can piggyback on that """
 
   geelogin_url = 'http://gee-project.org'
   geeauth_url = 'http://gee-project.org/auth/openid'
@@ -43,12 +63,8 @@ def get_geni_auth_session(uname, password, idprovider):
   session = requests.Session()
   session.mount('https://', RequestsSSLv3Adapter())
 
-  # get cookie for gee login
-  resp = session.get(geelogin_url)
-
   # get identity provider list so we can grab the correct url
-  idproviders = get_geni_identity_providers()
-  try: idprovider_url = idproviders[idprovider]
+  try: idprovider_url = get_idprovider_url(idprovider)
   except KeyError:
     print 'ID Provider %s, can not be found' % (idprovider)
     return False
