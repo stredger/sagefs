@@ -39,7 +39,7 @@ from swift.common.utils import cache_from_env, get_logger, \
   split_path, config_true_value, register_swift_info
 from swift.proxy.controllers.base import get_account_info
 
-from .geeauth import authenticate_with_gee
+from geeauth import authenticate_with_gee
 
 class GeeAuth(object):
   """
