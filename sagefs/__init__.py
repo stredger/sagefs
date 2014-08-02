@@ -1,2 +1,2 @@
 
-from .sagefs import *
+from sagefs import SageFS
