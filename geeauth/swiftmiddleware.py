@@ -39,8 +39,7 @@ from swift.common.utils import cache_from_env, get_logger, \
   split_path, config_true_value, register_swift_info
 from swift.proxy.controllers.base import get_account_info
 
-
-from sagefs.geeauth import authenticate_with_gee
+from .geeauth import authenticate_with_gee
 
 class GeeAuth(object):
   """
@@ -239,6 +238,9 @@ class GeeAuth(object):
         env['swift.authorize'] = self.authorize
         env['swift.clean_acl'] = clean_acl
     return self.app(env, start_response)
+
+  def get_account_url(self): pass
+
 
   def _get_user_groups(self, account, account_user, account_id):
     """
@@ -655,7 +657,9 @@ class GeeAuth(object):
                 time=float(expires - time()))
     resp = Response(request=req, headers={
       'x-auth-token': token, 'x-storage-token': token})
-    url = self.users[account_user]['url'].replace('$HOST', resp.host_url)
+
+    url = self.get_account_url(account_user).replace('$HOST', resp.host_url)
+
     if self.storage_url_scheme != 'default':
       url = self.storage_url_scheme + ':' + url.split(':', 1)[1]
     resp.headers['x-storage-url'] = url

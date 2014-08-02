@@ -43,7 +43,7 @@ import os
 import hosts
 import pymongo
 import bson.binary
-
+import geeauth
 
 #TODO's
 # - better exception handling stuff
