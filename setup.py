@@ -6,10 +6,10 @@ setup(name='sagefs',
       version='1.0',
       description='Sage Filesystem and stuff',
       author='Stephen Tredger',
-      packages=['sagefs', 'geeauth'],
+      packages=['sagefs', 'geniauth'],
       entry_points={
         'paste.filter_factory': [
-            'geeauthmiddleware = geeauth.swiftmiddleware:filter_factory'
+            'geniauthmiddleware = geniauth.swiftmiddleware:filter_factory'
         ]
       }
      )
