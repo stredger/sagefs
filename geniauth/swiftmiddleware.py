@@ -39,15 +39,15 @@ from swift.common.utils import cache_from_env, get_logger, \
   split_path, config_true_value, register_swift_info
 from swift.proxy.controllers.base import get_account_info
 
-from geeauth import authenticate_with_gee
+from geniauth import authenticate_with_geni
 
-class GeeAuth(object):
+class GeniAuth(object):
   """
 
   Add to your pipeline in proxy-server.conf, such as::
 
     [pipeline:main]
-    pipeline = catch_errors cache geeauth proxy-server
+    pipeline = catch_errors cache geniauth proxy-server
 
   Set account auto creation to true in proxy-server.conf::
 
@@ -109,7 +109,7 @@ class GeeAuth(object):
     self.reseller_prefix = conf.get('reseller_prefix', 'GEEAUTH').strip()
     if self.reseller_prefix and self.reseller_prefix[-1] != '_':
       self.reseller_prefix += '_'
-    self.logger.set_statsd_prefix('geeauth.%s' % (
+    self.logger.set_statsd_prefix('geniauth.%s' % (
       self.reseller_prefix if self.reseller_prefix else 'NONE',))
 
     # set the route that the auth token will get
@@ -150,8 +150,8 @@ class GeeAuth(object):
         if values and ('://' in values[-1] or '$HOST' in values[-1]):
           url = values.pop()
         else:
-          url = '$HOST/v1/%s%s' % (self.reseller_prefix, account)
-        self.users[account + ':' + username] = {
+          url = self.get_account_url(self.get_account_id(account, username))
+        self.superusers[account + ':' + username] = {
           'key': key, 'url': url, 'groups': values}
 
   def __call__(self, env, start_response):
@@ -239,8 +239,11 @@ class GeeAuth(object):
         env['swift.clean_acl'] = clean_acl
     return self.app(env, start_response)
 
-  def get_account_url(self): pass
+  def get_account_id(self, account, user):
+    return '%s%s_%s' % (self.reseller_prefix, account, user)
 
+  def get_account_url(self, account_id):
+    return '$HOST/v1/%s' % account_id
 
   def _get_user_groups(self, account, account_user, account_id):
     """
@@ -248,10 +251,16 @@ class GeeAuth(object):
     :param account_user: example: test:tester
     """
     groups = [account, account_user]
-    groups.extend(self.users[account_user]['groups'])
+    if self.superusers.get(account_user):
+      groups.extend(self.superusers[account_user]['groups'])
     if '.admin' in groups:
       groups.remove('.admin')
-      groups.append(account_id)
+
+    # we want to append this so if we pass the geni auth we are good to go!
+    #  If we dont swift doesnt think we are an account and will give us
+    #  403 forbidden as the accound doesnt exist in swift.
+    #  (We are using geni to auth, so swift doesnt have to know this)
+    groups.append(account_id)
     groups = ','.join(groups)
     return groups
 
@@ -282,20 +291,20 @@ class GeeAuth(object):
       account_user, sign = \
         env['HTTP_AUTHORIZATION'].split(' ')[1].rsplit(':', 1)
 
-      if account_user not in self.users:
-        return None
-
       account, user = account_user.split(':', 1)
-      account_id = self.users[account_user]['url'].rsplit('/', 1)[-1]
+      account_id = self.get_account_id(account, user)
 
       path = env['PATH_INFO']
       env['PATH_INFO'] = path.replace(account_user, account_id, 1)
 
-      msg = base64.urlsafe_b64decode(unquote(token))
-      key = self.users[account_user]['key']
-      s = base64.encodestring(hmac.new(key, msg, sha1).digest()).strip()
-      if s != sign:
-        return None
+      # We dont store the key so i dont now how we can verify, this 
+      #  may mean we should not cache the token???
+      # msg = base64.urlsafe_b64decode(unquote(token))
+      # key = ??
+      # s = base64.encodestring(hmac.new(key, msg, sha1).digest()).strip()
+      # if s != sign:
+      #   return None
+
       groups = self._get_user_groups(account, account_user, account_id)
 
     return groups
@@ -400,6 +409,8 @@ class GeeAuth(object):
       self.logger.debug("User %s has reseller admin authorizing."
                 % account_user)
       return None
+
+    print 'IMP--', account, user_groups
 
     if account in user_groups and \
         (req.method not in ('DELETE', 'PUT') or container):
@@ -607,8 +618,9 @@ class GeeAuth(object):
                     {'Www-Authenticate':
                      'Swift realm="%s"' % account})
     else:
-      # if not try to auth with gee!
-      if not authenticate_with_gee(user, key, account):
+      # if not try to auth with geni! We replace plus signs as spaces
+      #  so- when the request comes to the auth server spaces must be +'s!
+      if not authenticate_with_geni(user, key, account.replace('+', ' ')):
         self.logger.increment('token_denied')
         return HTTPUnauthorized(request=req, headers=
                     {'Www-Authenticate':
@@ -616,7 +628,7 @@ class GeeAuth(object):
 
     # We are authenticated if we get here! So create unique 
     #  user string by concatentaing the account and user
-    account_id = '%s%s_%s' % (self.reseller_prefix, account, user)
+    account_id = self.get_account_id(account, user)
 
 
     # Get memcache client
@@ -658,7 +670,7 @@ class GeeAuth(object):
     resp = Response(request=req, headers={
       'x-auth-token': token, 'x-storage-token': token})
 
-    url = self.get_account_url(account_user).replace('$HOST', resp.host_url)
+    url = self.get_account_url(account_id).replace('$HOST', resp.host_url)
 
     if self.storage_url_scheme != 'default':
       url = self.storage_url_scheme + ':' + url.split(':', 1)[1]
@@ -673,5 +685,5 @@ def filter_factory(global_conf, **local_conf):
   register_swift_info('tempauth', account_acls=True)
 
   def auth_filter(app):
-    return TempAuth(app, conf)
+    return GeniAuth(app, conf)
   return auth_filter

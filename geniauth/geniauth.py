@@ -47,7 +47,7 @@ def parse_url_query_params(url):
 
 
 
-def authenticate_with_gee(uname, password, idprovider):
+def authenticate_with_geni(uname, password, idprovider):
   """ Authenticate with GEE via the openid protocol. 
   We actually do two redirects here: GEE -> GENI Portal -> Open id provider 
   We could technically go straight to the GENI Portal but we area really
@@ -55,9 +55,8 @@ def authenticate_with_gee(uname, password, idprovider):
   change anything here. Also the gee uses a really nice library for openid 
   auth so we can piggyback on that """
 
-  geelogin_url = 'http://gee-project.org'
-  geeauth_url = 'http://gee-project.org/auth/openid'
-  portallogin_url = 'https://portal.geni.net/Shibboleth.sso/Login'
+  genilogin_url = 'https://portal.geni.net/secure/home.php'
+
 
   # set up sslv3 adapter for shibboleth authentication
   session = requests.Session()
@@ -66,19 +65,18 @@ def authenticate_with_gee(uname, password, idprovider):
   # get identity provider list so we can grab the correct url
   try: idprovider_url = get_idprovider_url(idprovider)
   except KeyError:
+    # stdout shows up in the swift log.. as info though
     print 'ID Provider %s, can not be found' % (idprovider)
     return False
 
-  # start the openid protocol by querying the gee auth page
-  args = {'openid_identifier': 'https://portal.geni.net/server/server.php'}
-  resp = session.post(geeauth_url, data=args)
+  resp = session.get(genilogin_url)
   returl = parse_url_query_params(resp.url)['return'][0]
 
   # get the geni portal page with the required login params
   retparams = parse_url_query_params(returl)
   params = {'SAMLDS': retparams['SAMLDS'][0], 'target': retparams['target'][0], 'entityID': idprovider_url}
   heads = {'Referer': resp.url}
-  resp = session.get(portallogin_url, params=params, headers=heads)
+  resp = session.get(returl, params=params, headers=heads)
   
   # actully attempt to log in with the id provider
   loginurl = resp.url
@@ -96,12 +94,6 @@ def authenticate_with_gee(uname, password, idprovider):
   auth_relay_state =  authform.find('input', attrs={'name':'RelayState'}).get('value')
   auth_token = authform.find('input', attrs={'name':'SAMLResponse'}).get('value')
   resp = session.post(auth_redirect_url, data={'RelayState':auth_relay_state, 'SAMLResponse': auth_token})
-
-  # confirm send information back to geni portal
-  confirmform = BeautifulSoup(resp.text).find('form')
-  confirm_auth_url = confirmform.get('action')
-  confirm_response = confirmform.find('input', attrs={'name':'save'}).get('value')
-  resp = session.post(confirm_auth_url, data={'save':confirm_response}, headers={'Referer':resp.url})
 
   # return if the request was successful, if so we are logged in!
   return resp.ok
