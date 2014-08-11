@@ -25,7 +25,7 @@ class SwiftHost(SageHost):
 
   def get_authv1_url(self):
     """ Given a host will generate the auth url required by swift """
-    return 'http://%s:%s/auth/v1.0' % (self.host, self.port)
+    return 'https://%s:%s/auth/v1.0' % (self.host, self.port)
 
 
 class MongoHost(SageHost):
@@ -52,7 +52,8 @@ swift = {
   'vic':SwiftHost('142.104.17.135', 8080, 'sagefs', 'stredger', 'thebestpass'),
   'tor':SwiftHost('142.150.208.220', 8080, 'sagefs', 'stredger', 'thebestpass'),
   'carl':SwiftHost('134.117.57.138', 8080, 'sagefs', 'stredger', 'thebestpass')
-  # 'local':SwiftHost('localhost', 8080, 'sagefs', 'savant', 'savant')
+  # 'local':SwiftHost('localhost', 8080, 'admin', 'sagefs', 'sys'
+  # 'local':SwiftHost('localhost', 8080, 'stredger', 'GENI+Project+Office', None)
 }
 
 # mongo instances

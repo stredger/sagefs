@@ -11,5 +11,11 @@ setup(name='sagefs',
         'paste.filter_factory': [
             'geniauthmiddleware = geniauth.swiftmiddleware:filter_factory'
         ]
-      }
+      },
+      install_requires=[
+        'requests',
+        'BeautifulSoup',
+        # 'pymongo',
+        'python-swiftclient'
+      ]
      )
