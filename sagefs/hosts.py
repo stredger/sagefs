@@ -17,7 +17,7 @@ class SageHost():
 
 
 class SwiftHost(SageHost):
-  def __init__(self, host, port, user, group, key):
+  def __init__(self, host, user, group, key, port=8080):
     SageHost.__init__(self, host, port)
     self.user = user
     self.group = group
@@ -25,11 +25,11 @@ class SwiftHost(SageHost):
 
   def get_authv1_url(self):
     """ Given a host will generate the auth url required by swift """
-    return 'https://%s:%s/auth/v1.0' % (self.host, self.port)
+    return 'http://%s:%s/auth/v1.0' % (self.host, self.port)
 
 
 class MongoHost(SageHost):
-  def __init__(self, host, port, database, collection):
+  def __init__(self, host, database, collection, port=27017):
     SageHost.__init__(self, host, port)
     self.database = database
     self.collection = collection
@@ -49,10 +49,10 @@ def update_all_swift_hosts(user=None, group=None, key=None):
 
 # a dictionary of all the swift proxies in sage
 swift = {
-  'vic':SwiftHost('142.104.17.135', 8080, 'sagefs', 'stredger', 'thebestpass'),
-  'tor':SwiftHost('142.150.208.220', 8080, 'sagefs', 'stredger', 'thebestpass'),
-  'carl':SwiftHost('134.117.57.138', 8080, 'sagefs', 'stredger', 'thebestpass')
-  # 'local':SwiftHost('localhost', 8080, 'admin', 'sagefs', 'sys'
+  # 'vic':SwiftHost('142.104.17.135', 'admin', 'system', 'sagefs'),
+  'tor':SwiftHost('142.150.208.220', 'admin', 'system', 'sagefs'),
+  'carl':SwiftHost('134.117.57.138', 'admin', 'system', 'sagefs'),
+  'local':SwiftHost('localhost', 'admin', 'system', 'sagefs'),
   # 'local':SwiftHost('localhost', 8080, 'stredger', 'GENI+Project+Office', None)
 }
 

@@ -379,7 +379,7 @@ class SwiftFS():
     except swiftclient.client.ClientException as e:
       raise SageFSException('HTTP Error: %s - %s' 
                  % (e.http_status, e.http_reason))
-    return objects
+    return [o['name'] for o in objects]
 
   def stat(self, path=None):
     """ Gets the stats of a file by heading it in Swift. Throws
