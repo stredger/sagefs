@@ -49,10 +49,10 @@ def update_all_swift_hosts(user=None, group=None, key=None):
 
 # a dictionary of all the swift proxies in sage
 swift = {
-  # 'vic':SwiftHost('142.104.17.135', 'admin', 'system', 'sagefs'),
+  'vic':SwiftHost('142.104.17.135', 'admin', 'system', 'sagefs'),
   'tor':SwiftHost('142.150.208.220', 'admin', 'system', 'sagefs'),
   'carl':SwiftHost('134.117.57.138', 'admin', 'system', 'sagefs'),
-  'local':SwiftHost('localhost', 'admin', 'system', 'sagefs'),
+  # 'local':SwiftHost('localhost', 'admin', 'system', 'sagefs'),
   # 'local':SwiftHost('localhost', 8080, 'stredger', 'GENI+Project+Office', None)
 }
 

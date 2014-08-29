@@ -16,6 +16,6 @@ setup(name='sagefs',
         'requests',
         'BeautifulSoup',
         'pymongo',
-        'python-swiftclient'
+        'python-swiftclient==1.4.0'
       ]
      )
