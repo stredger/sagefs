@@ -32,10 +32,6 @@ file (the default), or a tempfile on disk. Set the open arg 'inmem' to False for
 a file on disk. The files behave the same way regardless of type.
 """
 
-# this is just so we can find swiftclient in my dropbox
-# import sys
-# sys.path += ['.', '..']
-
 import swiftclient
 import StringIO
 import tempfile
@@ -43,12 +39,12 @@ import os
 import hosts
 import pymongo
 import bson.binary
-
+import random
 
 #TODO's
 # - better exception handling stuff
 # - handle path querying (--prefix in swift) in list command
-# - make this an actual python package
+
 
 class SageFSException(Exception): pass
 class SageFSInvalidPathException(SageFSException): pass
@@ -74,20 +70,19 @@ def can_retry_error_status(status):
 
 
 class SageFS():
-  """ The main geni filesystem object. Takes a user group and key, and 
-  establishes connections to Swift repos. Connections are only established
-  when they are used the first time. The SageFS object is designed to be the
+  """ The main filesystem object. Holds a collection of SwiftFS
+  and MongoFS objects. Connections are only established when they
+  are used the first time. The SageFS object is designed to be the 
   only object that must be explicitly created to use the SageFS. """
 
-  def __init__(self):
+  def __init__(self, swiftrepos=hosts.swift, mongorepos=hosts.mongo):
     self.filesystems = {}
-    self.swiftrepos = hosts.swift
-    self.mongorepos = hosts.mongo
+    self.swiftrepos = swiftrepos
+    self.mongorepos = mongorepos
     self.sites = self.swiftrepos.keys() + self.mongorepos.keys()
 
   def connect_to_filesystem(self, site):
-    """ Creates a FS object, if we correctly connected 
-    and acquired an auth token """
+    """ Creates a FS object, if we correctly connected """
     fs = None
     if site in self.swiftrepos.keys():
       repo = self.swiftrepos[site]
@@ -112,28 +107,34 @@ class SageFS():
     return location, resource
 
   def get_filesystem(self, location):
-    """ Find and return the hostname as a string for the provided location.
-    If no hostname matches a SageFSInvalidFilesystemException is raised """
+    """ Find and return the filesystem for the provided location.
+    If no FS matches a SageFSInvalidFilesystemException is raised """
     try: return self.filesystems[location]
     except KeyError:
       if location not in self.sites:
-        raise SageFSInvalidFilesystemException('Filesystem - %s - was not found' 
-                          % (location))
+        if location == 'all':
+          # will choose a random filesystem if we dont specify! This is where 
+          #  some funky file placement things can come into play!
+          return self.get_filesystem(self.sites[random.randint(0, len(self.sites)-1)])
+        else:
+          raise SageFSInvalidFilesystemException('Filesystem - %s - was not found' 
+                                                  % (location))
       else: return self.connect_to_filesystem(location)
       
 
   def open(self, path, *args, **kwargs):
     """ Opens a file at path, calls the underlying FS's open.
-    The desired SwiftFS, must be the root of the path """
+    The desired FS, must be the root of the path """
     # here is where we have to have the location in some metadata server
     #  and query it like: here is the path, give me the file loc
+    #  Or some sort of INSANE file splacement schema know'im sayn'?
     location, resource = self.split_location_from_path(path)
     fs = self.get_filesystem(location)
     return fs.open(resource, *args, **kwargs)
 
   def remove(self, path):
-    """ Removes a resourse by calling the holding SwiftFS's remove.
-    The SwiftFS must be the root of the path. """
+    """ Removes a resourse by calling the holding FS's remove.
+    The name of the FS must be the root of the path. """
     location, resource = self.split_location_from_path(path)
     fs = self.get_filesystem(location)
     fs.remove(resource)
@@ -142,10 +143,10 @@ class SageFS():
     """ Lists all Files in the filesystem specified at 'path'. If 'path' 
     is none, returns all the filesystem names in the SageFS """
     if not path: 
-      resp = {}
+      resp = []
       for location in self.sites:
         fs = self.get_filesystem(location)
-        resp[location] = fs.list()
+        resp += map(lambda s: os.path.join('/', location, s), fs.list())
       return resp
     location, resource = self.split_location_from_path(path)
     fs = self.get_filesystem(location)
@@ -379,7 +380,8 @@ class SwiftFS():
     except swiftclient.client.ClientException as e:
       raise SageFSException('HTTP Error: %s - %s' 
                  % (e.http_status, e.http_reason))
-    return [o['name'] for o in objects]
+    if not path: path = ''
+    return [f['name'] for f in filter(lambda ob: ob['name'].startswith(path), objects)]
 
   def stat(self, path=None):
     """ Gets the stats of a file by heading it in Swift. Throws
@@ -533,9 +535,9 @@ class SageFile():
     self.fileclass.writelines(self, arg)
     if sync: self.sync()
 
-  def close(self):
+  def close(self, sync=True):
     """ Close the file and sync it with remote storage """
-    self.sync()
+    if sync: self.sync()
     self.fileclass.close(self)
     self.fs.localfiles.pop(self.sagename)
 
